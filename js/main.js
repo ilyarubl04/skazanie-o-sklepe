@@ -259,10 +259,10 @@
   // ---------- credits ----------
   function renderCredits() {
     document.getElementById('credits-body').innerHTML =
-      '<p>Иконки: game-icons.net (CC BY 3.0).</p>' +
-      '<p>Музыка: процедурная, генерируется в браузере (Web Audio).</p>' +
-      '<p>Портреты и текстуры: OpenGameArt, Kenney, ambientCG (CC0).</p>' +
+      '<p>Музыка и звук: процедурные, генерируются в браузере (Web Audio).</p>' +
+      '<p>Текстура пергамента: ambientCG, Paper001 (CC0).</p>' +
       '<p>Шрифты: Forum, Lora (OFL).</p>' +
+      '<p>Портреты героев — в работе. Пока показаны геральдические гербы.</p>' +
       '<p>Игра сделана с любовью. 2026.</p>';
   }
 })();
