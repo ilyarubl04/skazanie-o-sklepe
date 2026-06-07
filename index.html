@@ -3,13 +3,77 @@
 <title>Сказание о Старом Склепе</title>
 <link rel="stylesheet" href="css/styles.css">
 </head><body>
-<div class="screen active" id="preview">
-  <h1 class="title">Сказание о Старом Склепе</h1>
-  <div class="panel narration dropcap">
-    <p>Деревня Тихий Брод дрожит в сумерках. Каждую ночь со старого склепа на холме разносится звон колокола.</p>
-    <p class="flavor">«Кто пойдёт — тот не вернётся прежним», — шепчет трактирщик.</p>
+  <audio id="music" loop></audio>
+
+  <!-- top bar -->
+  <div id="topbar" style="display:none;position:fixed;top:0;left:0;right:0;z-index:60;
+       text-align:center;padding:6px;font-family:'Forum, Georgia, serif';background:rgba(15,10,4,.85);border-bottom:1px solid var(--gold);">
+    <span id="turn-indicator"></span>
+    <button id="btn-music" class="mini">♪</button>
+    <button id="btn-sound" class="mini">🔊</button>
+    <button id="btn-menu" class="mini">≡</button>
   </div>
-  <button class="choice">Войти в таверну «Утопленный фонарь»</button>
-  <button class="choice">Отправиться к холму немедля</button>
-</div>
+
+  <!-- main menu -->
+  <div class="screen active" id="screen-menu">
+    <h1 class="title">Сказание<br>о Старом Склепе</h1>
+    <p class="flavor" style="text-align:center">Приключение для двоих. Мастер ведёт вас сам.</p>
+    <button class="choice" id="btn-new">Новая игра</button>
+    <button class="choice" id="btn-continue">Продолжить</button>
+    <button class="choice" id="btn-credits">Титры</button>
+  </div>
+
+  <!-- hero select -->
+  <div class="screen" id="screen-select">
+    <h2 id="select-prompt">Игрок 1 — выбери героя</h2>
+    <div class="hero-grid" id="hero-grid"></div>
+    <div class="panel" id="hero-detail" style="margin-top:16px;"></div>
+  </div>
+
+  <!-- scene -->
+  <div class="screen" id="screen-scene">
+    <div class="panel narration" id="scene-text"></div>
+    <div id="scene-actions"></div>
+    <div id="dice-tray"></div>
+  </div>
+
+  <!-- combat -->
+  <div class="screen" id="screen-combat">
+    <div id="combat-enemies"></div>
+    <div id="combat-heroes"></div>
+    <div id="combat-actions"></div>
+    <div class="panel" id="combat-log" style="max-height:160px;overflow:auto;"></div>
+    <div id="dice-tray-combat"></div>
+  </div>
+
+  <!-- pass device -->
+  <div class="screen" id="screen-pass">
+    <h2 id="pass-text" style="text-align:center;margin-top:30vh;">Передайте устройство</h2>
+    <button class="choice" id="btn-pass-ok">Готово</button>
+  </div>
+
+  <!-- ending -->
+  <div class="screen" id="screen-ending">
+    <div class="panel narration dropcap" id="ending-text"></div>
+    <button class="choice" id="btn-again">Сыграть снова</button>
+  </div>
+
+  <!-- credits -->
+  <div class="screen" id="screen-credits">
+    <h2>Титры</h2>
+    <div class="panel" id="credits-body"></div>
+    <button class="choice" id="btn-credits-back">Назад</button>
+  </div>
+
+  <script src="js/dice.js"></script>
+  <script src="js/rules.js"></script>
+  <script src="js/heroes.js"></script>
+  <script src="js/bestiary.js"></script>
+  <script src="js/adventure.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/combat.js"></script>
+  <script src="js/save.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/main.js"></script>
 </body></html>
