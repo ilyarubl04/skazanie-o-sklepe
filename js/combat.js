@@ -50,13 +50,24 @@
     log.push(enemy.name + ' получает ' + amount + ' урона.');
   }
 
-  combat.heroAttack = function (party, heroIndex, targetUid, rng) {
+  combat.heroAttack = function (party, heroIndex, targetUid, rng, fixedD20) {
     var c = party.combat;
     var hero = party.heroes[heroIndex];
     var enemy = findEnemy(c, targetUid);
     if (!validTarget(enemy)) return { hit: false, invalid: true };
     var atk = hero.def.attack;
-    var toHit = dice.rollD20(atk.bonus + statusAtkBonus(hero), rng);
+    var bonus = atk.bonus + statusAtkBonus(hero);
+    var toHit;
+    if (typeof fixedD20 === 'number') {
+      // a player-thrown d20 supplies the to-hit die; bonus is applied here
+      toHit = {
+        rolls: [fixedD20],
+        total: fixedD20 + bonus,
+        natural: fixedD20 === 20 ? 20 : (fixedD20 === 1 ? 1 : undefined)
+      };
+    } else {
+      toHit = dice.rollD20(bonus, rng);
+    }
     var res = { hit: false, roll: toHit.total };
     if (toHit.total >= enemy.defense || toHit.natural === 20) {
       var dmg = dice.roll(atk.damage, rng);

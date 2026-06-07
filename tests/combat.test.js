@@ -23,6 +23,24 @@ test('heroAttack with high roll hits and damages enemy', function () {
   assertEqual(res.hit, true);
   assert(p.combat.enemies[0].hp < 12, 'enemy took damage');
 });
+test('heroAttack with fixedD20=20 is a guaranteed hit and natural 20', function () {
+  var p = state.createParty(['brand', 'lira']);
+  combat.startCombat(p, [{ type: 'skeleton' }]);
+  var uid = p.combat.enemies[0].uid;
+  var res = combat.heroAttack(p, 0, uid, minRng(), 20); // min rng => min damage, still hits
+  assertEqual(res.hit, true);
+  assert(p.combat.enemies[0].hp < 12, 'enemy took damage on natural 20');
+});
+test('heroAttack with low fixedD20 misses a high-defense enemy', function () {
+  var p = state.createParty(['brand', 'lira']);
+  // morven is the boss with a high defense; a 2 + small bonus cannot reach it
+  combat.startCombat(p, [{ type: 'morven' }]);
+  var uid = p.combat.enemies[0].uid;
+  var before = p.combat.enemies[0].hp;
+  var res = combat.heroAttack(p, 0, uid, maxRng(), 2);
+  assertEqual(res.hit, false);
+  assertEqual(p.combat.enemies[0].hp, before, 'enemy unharmed on a miss');
+});
 test('killing all enemies sets status won', function () {
   var p = state.createParty(['brand', 'lira']);
   combat.startCombat(p, [{ type: 'wolf' }]);

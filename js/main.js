@@ -125,28 +125,38 @@
     var b = document.createElement('button'); b.className = 'choice';
     b.textContent = (ch.label || 'Проверка') + ' — бросок на ' + statName;
     b.onclick = function () {
-      b.disabled = true; audio.sfx.dice();
+      b.disabled = true;
       // use the hero with the higher stat of the two for fairness
       var best = party.heroes.reduce(function (a, h) { return h.def.stats[ch.stat] > a.def.stats[ch.stat] ? h : a; });
+      var bonus = D.rules.statBonus(best.def.stats[ch.stat]);
       var diff = D.rules.DIFFICULTY[ch.difficulty];
-      var res = D.rules.resolveCheck({ statValue: best.def.stats[ch.stat], difficulty: diff }, Math.random);
-      showDiceResult(document.getElementById('dice-tray'), res, function () {
-        if (res.success) {
-          if (ch.onSuccessSet) state.setFlag(party, ch.onSuccessSet, true);
-          enterScene(ch.onSuccess);
-        } else {
-          if (ch.onFailSet) state.setFlag(party, ch.onFailSet, true);
-          enterScene(ch.onFail);
-        }
-      });
+      D.diceThrow.roll({ prompt: 'Бросок на ' + statName, onSettle: function (face) {
+        var total = face + bonus;
+        var res = {
+          d20: face, bonus: bonus, total: total, difficulty: diff,
+          success: total >= diff, crit: face === 20, critFail: face === 1
+        };
+        showDiceResult(document.getElementById('dice-tray'), res, function () {
+          if (res.success) {
+            if (ch.onSuccessSet) state.setFlag(party, ch.onSuccessSet, true);
+            enterScene(ch.onSuccess);
+          } else {
+            if (ch.onFailSet) state.setFlag(party, ch.onFailSet, true);
+            enterScene(ch.onFail);
+          }
+        });
+      } });
     };
     actions.appendChild(b);
   }
 
   function showDiceResult(tray, res, done) {
+    var flourish = res.crit ? '<br><span style="color:#d4a853">Критический успех — 20!</span>'
+                 : res.critFail ? '<br><span style="color:#8b0000">Роковая единица!</span>' : '';
     tray.innerHTML = '<div class="panel" style="text-align:center;font-family:\'Forum, Georgia, serif\'">' +
       '🎲 ' + res.d20 + ' + ' + res.bonus + ' = <b>' + res.total + '</b> против ' + res.difficulty +
-      '<br>' + (res.success ? '<span style="color:#2e6b4f">Успех!</span>' : '<span style="color:#8b0000">Провал</span>') + '</div>';
+      '<br>' + (res.success ? '<span style="color:#2e6b4f">Успех!</span>' : '<span style="color:#8b0000">Провал</span>') +
+      flourish + '</div>';
     setTimeout(function () { tray.innerHTML = ''; done(); }, 1600);
   }
 
@@ -201,10 +211,11 @@
     atk.textContent = '⚔ Атаковать ' + (firstEnemy ? firstEnemy.name : '');
     atk.onclick = function () {
       if (!firstEnemy) return;
-      audio.sfx.dice();
-      var r = combat.heroAttack(party, combatCtx.heroTurn, firstEnemy.uid, Math.random);
-      audio.sfx[r.hit ? 'hit' : 'miss']();
-      advanceHero();
+      D.diceThrow.roll({ prompt: 'Бросок на попадание', onSettle: function (face) {
+        var r = combat.heroAttack(party, combatCtx.heroTurn, firstEnemy.uid, Math.random, face);
+        audio.sfx[r.hit ? 'hit' : 'miss']();
+        advanceHero();
+      } });
     };
     host.appendChild(atk);
 
