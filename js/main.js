@@ -190,6 +190,44 @@
     setTimeout(function () { tray.innerHTML = ''; done(); }, 1600);
   }
 
+  // ---------- combat juice helpers (presentation only) ----------
+  function shake() {
+    var el = document.getElementById('screen-combat');
+    if (!el) return;
+    el.classList.remove('shaking');
+    void el.offsetWidth; // force reflow so the animation can restart
+    el.classList.add('shaking');
+    setTimeout(function () { el.classList.remove('shaking'); }, 320);
+  }
+  function flashHit(el) {
+    if (!el) return;
+    el.classList.remove('flash-hit');
+    void el.offsetWidth;
+    el.classList.add('flash-hit');
+    setTimeout(function () { if (el) el.classList.remove('flash-hit'); }, 350);
+  }
+  function floatNumber(targetEl, text, color) {
+    if (!targetEl || typeof targetEl.getBoundingClientRect !== 'function') return;
+    var r = targetEl.getBoundingClientRect();
+    var el = document.createElement('div');
+    el.className = 'float-num';
+    el.textContent = text;
+    el.style.color = color || '#fff';
+    el.style.left = (r.left + r.width / 2) + 'px';
+    el.style.top = (r.top + r.height * 0.28) + 'px';
+    document.body.appendChild(el);
+    setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 950);
+  }
+  // find a rendered enemy panel by its uid (set as data-uid during renderCombat)
+  function enemyPanel(uid) {
+    if (!uid) return null;
+    return document.querySelector('#combat-enemies [data-uid="' + uid + '"]');
+  }
+  // find a rendered hero panel by its party index (data-idx)
+  function heroPanel(i) {
+    return document.querySelector('#combat-heroes [data-idx="' + i + '"]');
+  }
+
   // ---------- combat ----------
   var combatCtx = null;
   function startSceneCombat(scene) {
@@ -216,12 +254,16 @@
     var enemiesEl = document.getElementById('combat-enemies'); enemiesEl.innerHTML = '';
     party.combat.enemies.filter(function (e) { return e.hp > 0 && !e.fled; }).forEach(function (e) {
       var div = document.createElement('div'); div.className = 'panel'; div.style.display = 'inline-block'; div.style.margin = '4px';
-      div.innerHTML = '<b>' + e.name + '</b><div class="hpbar"><i style="width:' + Math.round(e.hp / e.maxHp * 100) + '%"></i></div>';
+      div.setAttribute('data-uid', e.uid);
+      var artSrc = e.def && e.def.art ? e.def.art : '';
+      var art = artSrc ? '<img src="' + artSrc + '" class="enemy-art" alt="">' : '';
+      div.innerHTML = art + '<b>' + e.name + '</b><div class="hpbar"><i style="width:' + Math.round(e.hp / e.maxHp * 100) + '%"></i></div>';
       enemiesEl.appendChild(div);
     });
     var heroesEl = document.getElementById('combat-heroes'); heroesEl.innerHTML = '';
     party.heroes.forEach(function (h, i) {
       var div = document.createElement('div'); div.className = 'panel'; div.style.margin = '4px';
+      div.setAttribute('data-idx', i);
       div.innerHTML = '<b>' + h.def.name + (h.downed ? ' (без сознания)' : '') + '</b>' +
         '<div class="hpbar"><i style="width:' + ui.hpPercent(h) + '%"></i></div>';
       if (i === combatCtx.heroTurn && !h.downed) div.style.outline = '2px solid var(--gold)';
@@ -241,9 +283,19 @@
     atk.textContent = '⚔ Атаковать ' + (firstEnemy ? firstEnemy.name : '');
     atk.onclick = function () {
       if (!firstEnemy) return;
+      var targetUid = firstEnemy.uid;
       D.diceThrow.roll({ prompt: 'Бросок на попадание', onSettle: function (face) {
-        var r = combat.heroAttack(party, combatCtx.heroTurn, firstEnemy.uid, Math.random, face);
-        audio.sfx[r.hit ? 'hit' : 'miss']();
+        var r = combat.heroAttack(party, combatCtx.heroTurn, targetUid, Math.random, face);
+        var panel = enemyPanel(targetUid);
+        if (r.hit) {
+          audio.sfx.sword();
+          shake();
+          flashHit(panel);
+          floatNumber(panel, '−' + r.damage, '#e8413a');
+        } else {
+          audio.sfx.miss();
+          floatNumber(panel, 'мимо', '#bdb0a0');
+        }
         advanceHero();
       } });
     };
@@ -256,10 +308,32 @@
       b.textContent = '✦ ' + ab.name + (left !== undefined ? ' (' + left + ')' : '');
       b.disabled = (left === 0);
       b.onclick = function () {
-        audio.sfx.dice();
         var target = firstEnemy ? firstEnemy.uid : null;
-        if (ab.effect === 'heal') { var ally = party.heroes.filter(function (x) { return x.downed; })[0] || hero; target = ally.id; audio.sfx.heal(); }
-        combat.heroAbility(party, combatCtx.heroTurn, ab.id, target, Math.random);
+        var healAllyIdx = -1;
+        if (ab.effect === 'heal') {
+          var ally = party.heroes.filter(function (x) { return x.downed; })[0] || hero;
+          target = ally.id;
+          healAllyIdx = party.heroes.indexOf(ally);
+        }
+        var enemyUid = target;
+        var r = combat.heroAbility(party, combatCtx.heroTurn, ab.id, target, Math.random);
+        // pick SFX by ability id/effect; fall back to sword for plain damage
+        var sfxName = ab.id === 'fireball' ? 'fire'
+                    : ab.id === 'precise_shot' ? 'bow'
+                    : ab.id === 'turn_undead' ? 'bones'
+                    : ab.effect === 'heal' ? 'heal'
+                    : (r && r.damage) ? 'sword'
+                    : 'dice';
+        if (audio.sfx[sfxName]) audio.sfx[sfxName]();
+        if (r && r.damage) {
+          shake();
+          var ep = enemyPanel(enemyUid);
+          flashHit(ep);
+          floatNumber(ep, '−' + r.damage, '#e8413a');
+        }
+        if (r && r.heal && healAllyIdx >= 0) {
+          floatNumber(heroPanel(healAllyIdx), '+' + r.heal, '#5fd47a');
+        }
         advanceHero();
       };
       host.appendChild(b);
@@ -273,7 +347,20 @@
     combatCtx.heroTurn++;
     if (combatCtx.heroTurn >= party.heroes.length) {
       combatCtx.heroTurn = 0;
+      // snapshot hero hp so we can show per-hero damage from the enemies' turn
+      var before = party.heroes.map(function (h) { return h.hp; });
       combat.enemiesTurn(party, Math.random);
+      var anyHit = false;
+      party.heroes.forEach(function (h, i) {
+        var delta = before[i] - h.hp;
+        if (delta > 0) {
+          anyHit = true;
+          var hp = heroPanel(i);
+          flashHit(hp);
+          floatNumber(hp, '−' + delta, '#e8413a');
+        }
+      });
+      if (anyHit) shake();
       renderCombat();
     } else {
       // pass-device prompt between the two players
