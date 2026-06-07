@@ -19,6 +19,13 @@
   }
 
   combat.startCombat = function (party, enemySpecs) {
+    // per-combat reset: refill ability uses and drop leftover statuses from prior fights
+    (party.heroes || []).forEach(function (hero) {
+      var uses = {};
+      hero.def.abilities.forEach(function (a) { if (a.uses !== 'unlimited') uses[a.id] = a.uses; });
+      hero.abilityUses = uses;
+      hero.statuses = [];
+    });
     party.combat = {
       enemies: enemySpecs.map(makeEnemy),
       round: 1, status: 'ongoing', log: []
@@ -28,6 +35,7 @@
 
   function aliveEnemies(c) { return c.enemies.filter(function (e) { return e.hp > 0 && !e.fled; }); }
   function findEnemy(c, uid) { return c.enemies.filter(function (e) { return e.uid === uid; })[0]; }
+  function validTarget(enemy) { return !!enemy && enemy.hp > 0 && !enemy.fled; }
 
   combat.combatStatus = function (party) {
     var c = party.combat;
@@ -46,6 +54,7 @@
     var c = party.combat;
     var hero = party.heroes[heroIndex];
     var enemy = findEnemy(c, targetUid);
+    if (!validTarget(enemy)) return { hit: false, invalid: true };
     var atk = hero.def.attack;
     var toHit = dice.rollD20(atk.bonus + statusAtkBonus(hero), rng);
     var res = { hit: false, roll: toHit.total };
@@ -65,11 +74,12 @@
     var c = party.combat;
     var hero = party.heroes[heroIndex];
     var ability = hero.def.abilities.filter(function (a) { return a.id === abilityId; })[0];
-    if (!ability) throw new Error('no ability ' + abilityId);
-    if (ability.uses !== 'unlimited') {
-      if (!hero.abilityUses[abilityId]) throw new Error('no uses left: ' + abilityId);
-      hero.abilityUses[abilityId]--;
-    }
+    if (!ability) return { ability: abilityId, invalid: true };
+    if (ability.uses !== 'unlimited' && !hero.abilityUses[abilityId]) return { ability: abilityId, invalid: true };
+    // enemy-targeting effects need a valid enemy before a use is spent
+    var enemyTargeting = { damage: 1, damage_bonus: 1, turn_undead: 1, guaranteed_hit: 1, debuff_attack: 1 };
+    if (enemyTargeting[ability.effect] && !validTarget(findEnemy(c, targetUid))) return { ability: abilityId, invalid: true };
+    if (ability.uses !== 'unlimited') hero.abilityUses[abilityId]--;
     var res = { ability: abilityId };
     switch (ability.effect) {
       case 'damage':

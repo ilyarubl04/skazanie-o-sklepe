@@ -57,3 +57,53 @@ test('heal ability restores a downed ally', function () {
   assert(p.heroes[1].hp > 0, 'ally healed');
   assertEqual(p.heroes[1].downed, false);
 });
+
+// ---- per-combat reset (fix 1) ----
+test('startCombat resets ability uses and clears statuses each fight', function () {
+  var p = state.createParty(['lira', 'mira']);
+  combat.startCombat(p, [{ type: 'skeleton' }]);
+  var uid = p.combat.enemies[0].uid;
+  combat.heroAbility(p, 0, 'fireball', uid, maxRng());      // spend a fireball
+  combat.heroAbility(p, 1, 'bless', p.heroes[0].id, maxRng()); // apply a buff status
+  assertEqual(p.heroes[0].abilityUses.fireball, 2);
+  assert(p.heroes[0].statuses.length > 0, 'buff applied before reset');
+  combat.startCombat(p, [{ type: 'skeleton' }]);            // new fight
+  assertEqual(p.heroes[0].abilityUses.fireball, 3, 'fireball refilled');
+  assertEqual(p.heroes[0].statuses.length, 0, 'statuses cleared');
+});
+
+// ---- nil-guard target lookups (fix 2) ----
+test('heroAttack on unknown uid returns invalid and does not throw', function () {
+  var p = state.createParty(['brand', 'lira']);
+  combat.startCombat(p, [{ type: 'skeleton' }]);
+  var res = combat.heroAttack(p, 0, 'nope-uid', maxRng());
+  assertEqual(res.hit, false);
+  assertEqual(res.invalid, true);
+});
+test('heroAttack on an already-dead enemy returns invalid, not a hit', function () {
+  var p = state.createParty(['brand', 'lira']);
+  combat.startCombat(p, [{ type: 'wolf' }, { type: 'skeleton' }]);
+  var deadUid = p.combat.enemies[0].uid;
+  combat.heroAttack(p, 0, deadUid, maxRng()); // kill the wolf (10hp, d8+3 max=11)
+  assert(p.combat.enemies[0].hp <= 0, 'wolf dead');
+  var res = combat.heroAttack(p, 1, deadUid, maxRng()); // attack the corpse
+  assertEqual(res.invalid, true);
+  assertEqual(res.hit, false);
+});
+
+// ---- no-op instead of throw for unusable abilities (fix 3) ----
+test('heroAbility with no uses left returns invalid, does not throw or go negative', function () {
+  var p = state.createParty(['lira', 'mira']);
+  combat.startCombat(p, [{ type: 'skeleton' }]);
+  var uid = p.combat.enemies[0].uid;
+  p.heroes[0].abilityUses.fireball = 0;
+  var res = combat.heroAbility(p, 0, 'fireball', uid, maxRng());
+  assertEqual(res.invalid, true);
+  assertEqual(p.heroes[0].abilityUses.fireball, 0);
+});
+test('heroAbility with unknown id returns invalid and does not throw', function () {
+  var p = state.createParty(['lira', 'mira']);
+  combat.startCombat(p, [{ type: 'skeleton' }]);
+  var res = combat.heroAbility(p, 0, 'no_such_ability', p.combat.enemies[0].uid, maxRng());
+  assertEqual(res.invalid, true);
+});
