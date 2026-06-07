@@ -202,8 +202,18 @@
     var s = c.createBufferSource(); s.buffer = buf; var g = c.createGain();
     g.gain.value = gain || 0.25; s.connect(g); g.connect(c.destination); s.start();
   }
+  // softer, lower-pitched noise burst used for woody dice clacks
+  function thunk(freq, dur, gain, noiseGain) {
+    if (!audio.soundOn) return;
+    tone(freq, dur, 'sine', gain);
+    noise(Math.min(dur, 0.06), noiseGain);
+  }
   audio.sfx = {
     dice: function () { noise(0.25, 0.3); setTimeout(function(){tone(180,0.08,'square',0.15);}, 120); },
+    // short woody clack — quick noise burst + low tone, for each wall bounce
+    diceBounce: function () { thunk(150, 0.06, 0.14, 0.12); },
+    // heavier thunk when the die finally settles on the table
+    diceLand: function () { thunk(85, 0.18, 0.3, 0.22); setTimeout(function(){ tone(60, 0.12, 'sine', 0.18); }, 30); },
     hit:  function () { tone(90, 0.18, 'sawtooth', 0.3); noise(0.12, 0.2); },
     miss: function () { tone(220, 0.12, 'sine', 0.12); },
     heal: function () { tone(523, 0.18, 'sine', 0.2); setTimeout(function(){tone(784,0.22,'sine',0.18);},90); },
