@@ -208,6 +208,21 @@
     tone(freq, dur, 'sine', gain);
     noise(Math.min(dur, 0.06), noiseGain);
   }
+  // filtered noise burst (band/low-passed) for whooshes and rattles
+  function filteredNoise(dur, gain, type, freq, sweepTo) {
+    if (!audio.soundOn) return;
+    var c = ctx(); if (!c) return;
+    var n = Math.floor(c.sampleRate * dur);
+    var buf = c.createBuffer(1, n, c.sampleRate); var d = buf.getChannelData(0);
+    for (var i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+    var s = c.createBufferSource(); s.buffer = buf;
+    var f = c.createBiquadFilter(); f.type = type || 'lowpass';
+    var t = c.currentTime;
+    f.frequency.setValueAtTime(freq || 1000, t);
+    if (typeof sweepTo === 'number') f.frequency.exponentialRampToValueAtTime(Math.max(60, sweepTo), t + dur);
+    var g = c.createGain(); g.gain.value = gain || 0.2;
+    s.connect(f); f.connect(g); g.connect(c.destination); s.start();
+  }
   audio.sfx = {
     dice: function () { noise(0.25, 0.3); setTimeout(function(){tone(180,0.08,'square',0.15);}, 120); },
     // short woody clack — quick noise burst + low tone, for each wall bounce
@@ -218,7 +233,34 @@
     miss: function () { tone(220, 0.12, 'sine', 0.12); },
     heal: function () { tone(523, 0.18, 'sine', 0.2); setTimeout(function(){tone(784,0.22,'sine',0.18);},90); },
     click:function () { tone(330, 0.05, 'triangle', 0.12); },
-    win:  function () { [523,659,784,1046].forEach(function(f,i){setTimeout(function(){tone(f,0.25,'sine',0.2);},i*140);}); }
+    win:  function () { [523,659,784,1046].forEach(function(f,i){setTimeout(function(){tone(f,0.25,'sine',0.2);},i*140);}); },
+    // metallic sword clash — bright high-pass noise + ringing high tone
+    sword: function () {
+      filteredNoise(0.14, 0.22, 'highpass', 2200);
+      tone(1400, 0.10, 'square', 0.10);
+      setTimeout(function(){ tone(2100, 0.12, 'triangle', 0.07); }, 20);
+    },
+    // fire whoosh — descending low-pass filtered noise
+    fire: function () { filteredNoise(0.45, 0.26, 'lowpass', 1800, 200); },
+    // bow twang — quick pitch-dropping pluck
+    bow: function () {
+      if (!audio.soundOn) return;
+      var c = ctx(); if (!c) return;
+      var o = c.createOscillator(); var g = c.createGain();
+      o.type = 'triangle';
+      var t = c.currentTime;
+      o.frequency.setValueAtTime(620, t);
+      o.frequency.exponentialRampToValueAtTime(180, t + 0.18);
+      g.gain.setValueAtTime(0.22, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+      o.connect(g); g.connect(c.destination); o.start(t); o.stop(t + 0.24);
+    },
+    // dry bone rattle — a few short band-passed noise ticks
+    bones: function () {
+      [0, 55, 105, 150].forEach(function (ms) {
+        setTimeout(function(){ filteredNoise(0.05, 0.16, 'bandpass', 2600); }, ms);
+      });
+    }
   };
 
   root.DnD.audio = audio;
