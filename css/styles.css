@@ -19,6 +19,18 @@ body{
   color:var(--text); font-family:'Lora', Georgia, 'Times New Roman', serif; font-size:18px; line-height:1.75;
   min-height:100%;
 }
+/* ===== atmospheric scene backgrounds ===== */
+/* two stacked layers crossfade; sepia+darken blends the photo into the painted-tome look */
+.scene-bg{position:fixed;inset:0;z-index:0;background-size:cover;background-position:center;
+  opacity:0;transition:opacity 1.2s ease;
+  filter:sepia(.35) brightness(.48) contrast(1.06) saturate(.85);
+  will-change:opacity,transform;}
+.scene-bg.show{opacity:1;animation:kenburns 26s ease-in-out infinite alternate;}
+/* dark readable veil so narration text always pops over the image */
+#bg-veil{position:fixed;inset:0;z-index:1;pointer-events:none;
+  background:radial-gradient(ellipse at center, rgba(15,10,4,.35) 0%, rgba(15,10,4,.72) 100%);}
+@keyframes kenburns{from{transform:scale(1.0);}to{transform:scale(1.09);}}
+
 /* fixed vignette overlay */
 body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:50;
   background:radial-gradient(ellipse at center, transparent 42%, rgba(0,0,0,.55) 72%, rgba(0,0,0,.85) 100%);}
@@ -69,7 +81,7 @@ h2,h3{font-family:'Forum', Georgia, serif;color:var(--gold);}
 .candle{animation:flicker 3s ease-in-out infinite;}
 
 /* screen switching */
-.screen{display:none;max-width:920px;margin:0 auto;padding:24px;}
+.screen{display:none;position:relative;z-index:2;max-width:920px;margin:0 auto;padding:24px;}
 .screen.active{display:block;}
 
 /* hero select grid */

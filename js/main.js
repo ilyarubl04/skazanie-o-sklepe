@@ -11,7 +11,36 @@
   function unlockOnce() { audio.unlock(); }
   document.addEventListener('pointerdown', unlockOnce);
 
+  // ---------- atmospheric scene backgrounds ----------
+  var _bg = { cur: null, which: 'a' };
+  function setSceneBg(img) {
+    if (!img || _bg.cur === img) return;
+    _bg.cur = img;
+    var incoming = _bg.which === 'a' ? document.getElementById('bg-b') : document.getElementById('bg-a');
+    var outgoing = _bg.which === 'a' ? document.getElementById('bg-a') : document.getElementById('bg-b');
+    incoming.style.backgroundImage = "url('" + img + "')";
+    incoming.classList.add('show');
+    if (outgoing) outgoing.classList.remove('show');
+    _bg.which = _bg.which === 'a' ? 'b' : 'a';
+  }
+  // resolve a scene id -> background image (prefix-based)
+  function sceneBg(id) {
+    var base = 'assets/scenes/';
+    id = id || '';
+    if (id.indexOf('tavern') === 0) return base + 'tavern.jpg';
+    if (id.indexOf('forest') === 0) return base + 'forest.jpg';
+    if (id.indexOf('chapel') === 0) return base + 'chapel.jpg';
+    if (id.indexOf('crypt') === 0) return base + 'crypt.jpg';
+    if (id.indexOf('boss') === 0) return base + 'boss.jpg';
+    if (id === 'start') return base + 'village.jpg';
+    if (id === 'ending_light' || id === 'ending_clever') return base + 'victory.jpg';
+    if (id === 'ending_bitter') return base + 'crypt.jpg';
+    if (id === 'defeat_scene') return base + 'crypt.jpg';
+    return base + 'menu.jpg';
+  }
+
   // ---------- menu ----------
+  setSceneBg('assets/scenes/menu.jpg');
   audio.playMusic('menu');
   document.getElementById('btn-continue').style.display = save.hasSave() ? 'block' : 'none';
   document.getElementById('btn-new').onclick = startSelect;
@@ -75,6 +104,7 @@
 
   // ---------- scenes ----------
   function enterScene(id) {
+    setSceneBg(sceneBg(id));
     party.sceneId = id; save.write(party);
     var scene = sceneMap[id];
     audio.playMusic(scene.music);

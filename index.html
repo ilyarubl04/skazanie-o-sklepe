@@ -8,6 +8,11 @@
 <link rel="stylesheet" href="css/styles.css">
 <script>if('serviceWorker' in navigator && location.protocol.indexOf('http')===0){addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){});});}</script>
 </head><body>
+  <!-- atmospheric scene backgrounds (crossfade between the two layers) -->
+  <div id="bg-a" class="scene-bg"></div>
+  <div id="bg-b" class="scene-bg"></div>
+  <div id="bg-veil"></div>
+
   <audio id="music" loop></audio>
 
   <!-- top bar -->
