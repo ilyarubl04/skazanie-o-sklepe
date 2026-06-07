@@ -29,13 +29,29 @@
   function startSelect() {
     audio.sfx.click(); pendingSelect = []; renderHeroGrid(); ui.show('screen-select');
   }
+  // replace a failed portrait <img> with a styled heraldic crest div
+  function swapToCrest(img, h) {
+    if (!img.parentNode) return;
+    var crest = document.createElement('div');
+    crest.className = 'crest-fallback';
+    crest.textContent = h.crest || '⚔️';
+    img.parentNode.replaceChild(crest, img);
+  }
+
   function renderHeroGrid() {
     var grid = document.getElementById('hero-grid'); grid.innerHTML = '';
     document.getElementById('select-prompt').textContent = 'Игрок ' + (pendingSelect.length + 1) + ' — выбери героя';
     HEROES.forEach(function (h) {
       var card = document.createElement('div'); card.className = 'hero-card';
       if (pendingSelect.indexOf(h.id) >= 0) card.classList.add('selected');
-      card.innerHTML = '<img src="' + h.portrait + '" alt="' + h.name + '"><div style="padding:6px;text-align:center;font-family:\'Forum, Georgia, serif\'">' + h.name + '<br><small>' + h.role + '</small></div>';
+      var img = document.createElement('img');
+      img.src = h.portrait; img.alt = h.name;
+      // graceful fallback: missing portrait -> heraldic crest with the hero's emoji
+      img.onerror = function () { swapToCrest(img, h); };
+      var label = document.createElement('div');
+      label.style.cssText = 'padding:6px;text-align:center;font-family:\'Forum, Georgia, serif\'';
+      label.innerHTML = h.name + '<br><small>' + h.role + '</small>';
+      card.appendChild(img); card.appendChild(label);
       card.onclick = function () { showHeroDetail(h); };
       grid.appendChild(card);
     });

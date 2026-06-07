@@ -4,7 +4,7 @@
 
   var HEROES = [
     {
-      id: 'brand', name: 'Бранд', role: 'Воин', portrait: 'assets/portraits/brand.png',
+      id: 'brand', name: 'Бранд', role: 'Воин', portrait: 'assets/portraits/brand.png', crest: '🛡️',
       story: 'Ветеран, оставивший армию ради искупления. Стоит как стена между бедой и слабым.',
       stats: { str: 5, dex: 2, int: 1, cha: 2 }, maxHp: 34, defense: 14,
       attack: { name: 'Удар меча', bonus: 5, damage: 'd8+3', stat: 'str' },
@@ -15,7 +15,7 @@
       ]
     },
     {
-      id: 'lira', name: 'Лира', role: 'Маг', portrait: 'assets/portraits/lira.png',
+      id: 'lira', name: 'Лира', role: 'Маг', portrait: 'assets/portraits/lira.png', crest: '🔥',
       story: 'Сбежала из закрытой академии с запретной книгой. Огонь слушается её слов.',
       stats: { str: 1, dex: 2, int: 5, cha: 3 }, maxHp: 20, defense: 11,
       attack: { name: 'Удар посоха', bonus: 5, damage: 'd6+3', stat: 'int' },
@@ -26,7 +26,7 @@
       ]
     },
     {
-      id: 'finn', name: 'Финн', role: 'Плут', portrait: 'assets/portraits/finn.png',
+      id: 'finn', name: 'Финн', role: 'Плут', portrait: 'assets/portraits/finn.png', crest: '🗡️',
       story: 'Вор с золотым сердцем и долгом перед гильдией. Замок для него — приглашение.',
       stats: { str: 2, dex: 5, int: 3, cha: 3 }, maxHp: 24, defense: 13,
       attack: { name: 'Удар кинжалов', bonus: 6, damage: 'd6+4', stat: 'dex' },
@@ -37,7 +37,7 @@
       ]
     },
     {
-      id: 'mira', name: 'Сестра Мира', role: 'Жрец', portrait: 'assets/portraits/mira.png',
+      id: 'mira', name: 'Сестра Мира', role: 'Жрец', portrait: 'assets/portraits/mira.png', crest: '✨',
       story: 'Жрица света, пришедшая на зов о пропавших. Нежить страшится её молитв.',
       stats: { str: 2, dex: 2, int: 4, cha: 4 }, maxHp: 28, defense: 13,
       attack: { name: 'Удар булавы', bonus: 4, damage: 'd6+2', stat: 'str' },
@@ -48,7 +48,7 @@
       ]
     },
     {
-      id: 'thea', name: 'Тэя', role: 'Следопыт', portrait: 'assets/portraits/thea.png',
+      id: 'thea', name: 'Тэя', role: 'Следопыт', portrait: 'assets/portraits/thea.png', crest: '🏹',
       story: 'Одиночка с границы леса. Знает тропы, которых нет на картах.',
       stats: { str: 3, dex: 4, int: 3, cha: 2 }, maxHp: 26, defense: 13,
       attack: { name: 'Выстрел из лука', bonus: 6, damage: 'd8+3', stat: 'dex', ranged: true },
@@ -59,7 +59,7 @@
       ]
     },
     {
-      id: 'kael', name: 'Каэль', role: 'Бард', portrait: 'assets/portraits/kael.png',
+      id: 'kael', name: 'Каэль', role: 'Бард', portrait: 'assets/portraits/kael.png', crest: '🎵',
       story: 'Странствующий менестрель, что собирает истории и бежит от собственной.',
       stats: { str: 2, dex: 3, int: 3, cha: 5 }, maxHp: 24, defense: 12,
       attack: { name: 'Удар рапиры', bonus: 4, damage: 'd6+2', stat: 'dex' },

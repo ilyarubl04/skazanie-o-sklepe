@@ -78,3 +78,8 @@ h2,h3{font-family:'Forum', Georgia, serif;color:var(--gold);}
 .hero-card{border:2px solid var(--gold);border-radius:8px;overflow:hidden;cursor:pointer;background:#1c1107;}
 .hero-card img{width:100%;display:block;aspect-ratio:1/1;object-fit:cover;}
 .hero-card.selected{outline:3px solid var(--emerald);}
+/* heraldic crest shown when a portrait PNG is missing */
+.crest-fallback{width:100%;aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;
+  font-size:3rem;line-height:1;background:#1c1107;color:var(--gold);
+  border-bottom:2px solid var(--gold);
+  box-shadow:inset 0 0 30px rgba(0,0,0,.6);}
