@@ -47,6 +47,8 @@
     if (id === 'ending_light' || id === 'ending_clever') return base + 'victory.jpg';
     if (id === 'ending_bitter') return base + 'crypt.jpg';
     if (id === 'defeat_scene') return base + 'crypt.jpg';
+    if (id === 'morven_truth') return base + 'crypt.jpg';   // the ominous reveal under the склеп
+    if (id === 'chapter1_end') return base + 'chapel.jpg';  // dawn at the склеп threshold — season-finale
     return base + 'menu.jpg';
   }
 
@@ -384,6 +386,21 @@
   }
 
   // ---------- scenes ----------
+  // A scene may carry `textVariant: { lines: {flagA:'…', flagB:'…'}, default:'…' }`:
+  // the first matching party-flag picks an opening line prepended to scene.text.
+  // Lets one scene (e.g. morven_truth) read differently by HOW the player got there,
+  // without duplicating the whole scene. Falls back to scene.text untouched.
+  function sceneText(scene) {
+    var tv = scene.textVariant;
+    if (!tv || !tv.lines) return scene.text;
+    var pick = tv.default || '';
+    var keys = Object.keys(tv.lines);
+    for (var i = 0; i < keys.length; i++) {
+      if (party && party.flags && party.flags[keys[i]]) { pick = tv.lines[keys[i]]; break; }
+    }
+    return pick ? [pick].concat(scene.text) : scene.text;
+  }
+
   function enterScene(id) {
     setSceneBg(sceneBg(id));
     if (voice && voice.playScene) voice.playScene(id);
@@ -435,7 +452,7 @@
     var textEl = document.getElementById('scene-text');
     var actions = document.getElementById('scene-actions'); actions.innerHTML = '';
     textEl.onclick = function () { ui.skipTyping(textEl); };
-    ui.typeParagraphs(textEl, scene.text, { dropcap: scene.dropCap }, function () {
+    ui.typeParagraphs(textEl, sceneText(scene), { dropcap: scene.dropCap }, function () {
       if (scene.check) renderCheck(scene);
       else if (isChoiceScene && scene.coDecision && party.heroes.length === 2) {
         renderCoDecision(scene, actions);
@@ -926,7 +943,7 @@
     document.getElementById('topbar').style.display = 'none';
     ui.show('screen-ending');
     var el = document.getElementById('ending-text');
-    ui.typeParagraphs(el, scene.text, { dropcap: true });
+    ui.typeParagraphs(el, sceneText(scene), { dropcap: true });
   }
 
   // ---------- credits ----------
