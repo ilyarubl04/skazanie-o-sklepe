@@ -72,7 +72,7 @@
         choices: [
           { label: 'Расспросить трактирщика (Убеждение)', goto: 'tavern_ask' },
           { label: 'Подслушать перепуганных гостей', goto: 'tavern_eavesdrop' },
-          { label: 'Отправиться к холму немедля', goto: 'forest' }
+          { label: 'Отправиться к холму немедля', goto: 'road_to_hill' }
         ]
       },
       {
@@ -98,7 +98,7 @@
           stat: 'int', difficulty: 'easy',
           label: 'Разобрать испуганный шёпот',
           onSuccess: 'tavern_clue', onSuccessSet: 'knowsBell',
-          onFail: 'forest'
+          onFail: 'road_to_hill'
         }
       },
       {
@@ -108,7 +108,7 @@
           '«Имя ему — Морвен. Некромант, которого сожгли здесь сто лет назад. Видать, плохо сожгли. А прошлой ночью пропала Майя, дочка трактирщика, — пошла за водой и не вернулась». Он осеняет себя знаком и больше не говорит ни слова.'
         ],
         choices: [
-          { label: 'Идти к холму', goto: 'forest' }
+          { label: 'Идти к холму', goto: 'road_to_hill' }
         ]
       },
       {
@@ -118,9 +118,22 @@
           'Что ж. Холм сам расскажет остальное — тем, кто доберётся до его вершины.'
         ],
         choices: [
-          { label: 'Идти к холму', goto: 'forest' }
+          { label: 'Идти к холму', goto: 'road_to_hill' }
         ]
       },
+
+      // ---- терминал кластера «Тихий Брод»: на карту, открыть Чёрный лес ----
+      {
+        id: 'road_to_hill', music: 'overworld',
+        text: [
+          'Вы оставляете огни Тихого Брода за спиной и выходите на старую дорогу, что вьётся к холму через чёрный лес.',
+          'Самое время свериться с картой похода и выбрать путь.'
+        ],
+        choices: [
+          { label: 'К карте похода', goto: '__map__', returnToMap: true, mapDone: 'tihiy_brod' }
+        ]
+      },
+
       {
         id: 'forest', music: 'forest', dropCap: true,
         art: 'assets/scenes/forest.jpg',
@@ -143,7 +156,7 @@
         check: {
           stat: 'dex', difficulty: 'medium',
           label: 'Проскользнуть мимо стаи',
-          onSuccess: 'chapel', onFail: 'forest_fight'
+          onSuccess: 'forest_to_chapel', onFail: 'forest_fight'
         }
       },
       {
@@ -155,7 +168,7 @@
         check: {
           stat: 'cha', difficulty: 'hard',
           label: 'Обратить зверей в бегство',
-          onSuccess: 'chapel', onFail: 'forest_fight'
+          onSuccess: 'forest_to_chapel', onFail: 'forest_fight'
         }
       },
       {
@@ -166,9 +179,22 @@
         ],
         combat: {
           enemies: [{ type: 'wolf' }, { type: 'wolf' }],
-          onWin: 'chapel', onLose: 'defeat_scene'
+          onWin: 'forest_to_chapel', onLose: 'defeat_scene'
         }
       },
+
+      // ---- терминал кластера «Чёрный лес»: на карту, открыть Часовню ----
+      {
+        id: 'forest_to_chapel', music: 'overworld',
+        text: [
+          'Лес остаётся позади. Тропа выводит вас на склон холма — впереди, среди голых деревьев, белеют развалины старой часовни, преддверия склепа.',
+          'Стоит свериться с картой, прежде чем идти дальше.'
+        ],
+        choices: [
+          { label: 'К карте похода', goto: '__map__', returnToMap: true, mapDone: 'cherny_les' }
+        ]
+      },
+
       {
         id: 'chapel', music: 'crypt', dropCap: true,
         art: 'assets/scenes/chapel.jpg',
@@ -190,7 +216,7 @@
           'Костяные стражи внизу оседают грудами, не успев подняться. Святой свет расчистил вам путь — на этот раз без боя.'
         ],
         choices: [
-          { label: 'Спуститься в склеп', goto: 'crypt_note', set: { miraDispelled: true } }
+          { label: 'К карте — спуск в склеп открыт', goto: '__map__', returnToMap: true, mapDone: 'chasovnya', set: { miraDispelled: true } }
         ]
       },
       {
@@ -239,9 +265,22 @@
           enemies: [{ type: 'skeleton' }, { type: 'skeleton' }],
           enemiesIfNoisy: [{ type: 'skeleton' }, { type: 'skeleton' }, { type: 'skeleton' }],
           noisyFlag: 'noisy',
-          onWin: 'crypt_note', onLose: 'defeat_scene'
+          onWin: 'chapel_to_crypt', onLose: 'defeat_scene'
         }
       },
+
+      // ---- терминал кластера «Часовня»: на карту, открыть Склеп ----
+      {
+        id: 'chapel_to_crypt', music: 'overworld',
+        text: [
+          'Костяные стражи часовни повержены. За расчищенным проходом чёрной пастью открывается спуск в Склеп — туда, откуда плывёт колокольный звон.',
+          'Переведите дух и сверьтесь с картой перед тем, как шагнуть во тьму.'
+        ],
+        choices: [
+          { label: 'К карте — спуск в склеп открыт', goto: '__map__', returnToMap: true, mapDone: 'chasovnya' }
+        ]
+      },
+
       {
         id: 'crypt_note', music: 'crypt', dropCap: true, levelUp: 1,
         text: [
@@ -304,7 +343,7 @@
           'Вы берёте реликвию. Свет её отзывается на ваше прикосновение и разгорается чуть ярче, словно узнал руку, что понесёт его против тьмы.'
         ],
         choices: [
-          { label: 'К залу колокола', goto: 'boss' }
+          { label: 'К карте — зал колокола впереди', goto: '__map__', returnToMap: true, mapDone: 'sklep' }
         ]
       },
       {
@@ -317,9 +356,22 @@
           enemies: [{ type: 'skeleton' }],
           enemiesIfNoisy: [{ type: 'skeleton' }, { type: 'skeleton' }],
           noisyFlag: 'bellTolled',
-          onWin: 'boss', onLose: 'defeat_scene'
+          onWin: 'crypt_to_bell', onLose: 'defeat_scene'
         }
       },
+
+      // ---- терминал кластера «Склеп»: на карту, открыть Зал колокола ----
+      {
+        id: 'crypt_to_bell', music: 'overworld',
+        text: [
+          'Страж повержен, и короткий ход выводит к подножию винтовой лестницы. Наверху, в круглом зале под сводом холма, висит чёрный погребальный колокол — и там вас ждёт Морвен.',
+          'Последний вздох перед решающим шагом. Сверьтесь с картой.'
+        ],
+        choices: [
+          { label: 'К карте — зал колокола впереди', goto: '__map__', returnToMap: true, mapDone: 'sklep' }
+        ]
+      },
+
       {
         id: 'boss', music: 'battle', dropCap: true,
         art: 'assets/scenes/crypt.jpg',
