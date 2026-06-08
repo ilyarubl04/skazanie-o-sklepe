@@ -42,11 +42,14 @@
       { id: 'zastava',      label: 'Застава',           x: 56, y: 24, act: 3, icon: '🏕️', enter: 'outpost',         done: 'map_zastava' },
       { id: 'gat',          label: 'Гать',              x: 64, y: 15, act: 3, icon: '🪵', enter: 'gat',             done: 'map_gat' },
 
-      // ---- Акт 4–5 — placeholders (locked / under the fog until built) ----
-      { id: 'monastyr',     label: 'Монастырь',         x: 76, y: 9,  act: 4, icon: '🏰', enter: null, done: 'map_monastyr' },
-      { id: 'kolokolnya',   label: 'Колокольня',        x: 86, y: 16, act: 4, icon: '🗼', enter: null, done: 'map_kolokolnya' },
-      { id: 'kripta',       label: 'Крипта Ордена',     x: 90, y: 30, act: 4, icon: '⚰️', enter: null, done: 'map_kripta' },
-      { id: 'zatopl_cerkov',label: 'Затопл. церковь',   x: 84, y: 44, act: 4, icon: '🌊', enter: null, done: 'map_zatopl_cerkov' },
+      // ---- Акт 4 — «Монастырь Безмолвия» — playable cluster (working enter scenes) ----
+      // Внутренняя последовательность: Двор → Колокольня → Крипта → Затопл. церковь.
+      // Каждый кластер возвращается на карту (returnToMap) и открывает следующий узел.
+      { id: 'monastyr',     label: 'Монастырь',         x: 76, y: 9,  act: 4, icon: '🏰', enter: 'monastery_yard', done: 'map_monastyr' },
+      { id: 'kolokolnya',   label: 'Колокольня',        x: 86, y: 16, act: 4, icon: '🗼', enter: 'belltower',      done: 'map_kolokolnya' },
+      { id: 'kripta',       label: 'Крипта Ордена',     x: 90, y: 30, act: 4, icon: '⚰️', enter: 'order_crypt',    done: 'map_kripta' },
+      { id: 'zatopl_cerkov',label: 'Затопл. церковь',   x: 84, y: 44, act: 4, icon: '🌊', enter: 'flooded_church', done: 'map_zatopl_cerkov' },
+      // ---- Акт 5 — placeholder (locked / under the fog until built) ----
       { id: 'serdce',       label: 'Сердце-Колокол',    x: 90, y: 58, act: 5, icon: '🕳️', enter: null, done: 'map_serdce' }
     ],
     // undirected path graph (an edge means "you can travel between these two")
