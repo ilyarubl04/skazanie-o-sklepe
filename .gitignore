@@ -2,3 +2,5 @@
 .netlify
 _check.js
 node_modules
+.openrouter_key
+assets/audio/vo/_sample__*.mp3

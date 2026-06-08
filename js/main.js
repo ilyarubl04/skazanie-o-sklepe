@@ -8,8 +8,10 @@
   var party = null;
   var pendingSelect = [];
 
-  function unlockOnce() { audio.unlock(); }
+  var voice = D.voice;
+  function unlockOnce() { audio.unlock(); if (voice && voice.unlock) voice.unlock(); }
   document.addEventListener('pointerdown', unlockOnce);
+  if (voice && voice.init) voice.init();
 
   // ---------- atmospheric scene backgrounds ----------
   var _bg = { cur: null, which: 'a' };
@@ -52,6 +54,12 @@
   document.getElementById('btn-again').onclick = function () { save.clear(); location.reload(); };
   document.getElementById('btn-music').onclick = function (e) { e.target.style.opacity = audio.toggleMusic() ? 1 : .4; };
   document.getElementById('btn-sound').onclick = function (e) { e.target.style.opacity = audio.toggleSound() ? 1 : .4; };
+  (function () {
+    var vb = document.getElementById('btn-voice');
+    if (!vb) return;
+    vb.style.opacity = (voice && voice.on) ? 1 : .4;
+    vb.onclick = function (e) { e.target.style.opacity = (voice && voice.toggle()) ? 1 : .4; };
+  })();
   document.getElementById('btn-menu').onclick = function () { if (confirm('Выйти в меню? Прогресс сохранён.')) location.reload(); };
 
   // ---------- hero select ----------
@@ -237,6 +245,7 @@
   // ---------- scenes ----------
   function enterScene(id) {
     setSceneBg(sceneBg(id));
+    if (voice && voice.playScene) voice.playScene(id);
     party.sceneId = id; save.write(party);
     var scene = sceneMap[id];
     audio.playMusic(scene.music);
