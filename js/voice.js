@@ -17,6 +17,11 @@
     if (!voice._el && typeof document !== 'undefined') voice._el = document.getElementById('vo');
     return voice._el;
   }
+  // lower the background music while the narrator speaks, restore when done
+  function duck(on) {
+    var au = root.DnD && root.DnD.audio;
+    if (au && au.duck) au.duck(on);
+  }
 
   voice.init = function () {
     if (typeof localStorage !== 'undefined') {
@@ -48,15 +53,17 @@
     if (!a || !voice.on || !sceneId) return;
     voice.stop();
     a.src = DIR + sceneId + '.mp3';
-    a.onerror = function () { /* no voice file for this scene yet — silently ignore */ };
+    a.onerror = function () { duck(false); /* no voice file — restore music */ };
+    a.onended = function () { duck(false); /* narration finished — restore music */ };
     var p = a.play();
-    if (p && p.catch) p.catch(function () { /* autoplay blocked until a gesture; ignore */ });
+    if (p && p.catch) p.catch(function () { duck(false); /* autoplay blocked until a gesture */ });
+    duck(true); // narrator speaking → lower the background music
   };
 
   voice.toggle = function () {
     voice.on = !voice.on;
     if (typeof localStorage !== 'undefined') localStorage.setItem(KEY, voice.on ? '1' : '0');
-    if (!voice.on) voice.stop();
+    if (!voice.on) { voice.stop(); duck(false); }
     return voice.on;
   };
 

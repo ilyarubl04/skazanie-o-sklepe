@@ -9,7 +9,8 @@
     _musicGain: null,      // master gain for procedural music
     _voices: [],           // active scheduler handles (setInterval ids)
     _fade: null,           // active procedural gain-fade interval id
-    _fileFade: null        // active <audio> volume-fade interval id
+    _fileFade: null,       // active <audio> volume-fade interval id
+    _ducked: false         // true while the narrator speaks (music lowered)
   };
 
   function ctx() {
@@ -142,7 +143,10 @@
   // ---- file-based adaptive music (original Lyria tracks) with procedural fallback ----
   var MUSIC_BASE = 'assets/audio/music/';
   var FILE_VOL = 0.55;
+  var PROC_VOL = 0.6;
+  var DUCK = 0.72;   // music drops to ~72% (≈28% quieter) while the narrator speaks
   function musicEl() { return (typeof document !== 'undefined') ? document.getElementById('music') : null; }
+  function fileTarget() { return FILE_VOL * (audio._ducked ? DUCK : 1); }
 
   function fadeEl(el, target, step, onDone) {
     if (audio._fileFade) { clearInterval(audio._fileFade); audio._fileFade = null; }
@@ -174,13 +178,24 @@
     audio._mode = 'proc';
     stopVoices(); startMood(mood);
     if (audio._fade) { clearInterval(audio._fade); audio._fade = null; }
-    var v = 0, target = 0.6;
+    var v = 0, target = PROC_VOL * (audio._ducked ? DUCK : 1);
     try { bus.gain.value = 0; } catch (e) {}
     audio._fade = setInterval(function () {
       v += 0.05; try { bus.gain.value = Math.min(target, v); } catch (e) {}
       if (v >= target) { clearInterval(audio._fade); audio._fade = null; }
     }, 70);
   }
+
+  // duck background music while the narrator speaks (called by js/voice.js)
+  audio.duck = function (on) {
+    audio._ducked = !!on;
+    if (audio._mode === 'file') {
+      var el = musicEl(); if (el) fadeEl(el, fileTarget(), 0.05);
+    } else if (audio._mode === 'proc') {
+      var bus = audio._musicGain;
+      if (bus) { try { bus.gain.value = PROC_VOL * (audio._ducked ? DUCK : 1); } catch (e) {} }
+    }
+  };
 
   audio.playMusic = function (mood) {
     if (audio._current === mood && audio._mode) return;   // already on this mood
@@ -193,7 +208,7 @@
     var src = MUSIC_BASE + mood + '.mp3';
     el.loop = true;
     el.onerror = function () { el.onerror = null; el.onplaying = null; startProcedural(mood); };
-    el.onplaying = function () { el.onplaying = null; audio._mode = 'file'; stopVoices(); muteBus(); fadeEl(el, FILE_VOL); };
+    el.onplaying = function () { el.onplaying = null; audio._mode = 'file'; stopVoices(); muteBus(); fadeEl(el, fileTarget()); };
 
     var doSwitch = function () {
       try { el.pause(); el.currentTime = 0; } catch (e) {}
