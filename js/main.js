@@ -8,6 +8,15 @@
   var party = null;
   var pendingSelect = [];
 
+  // ---------- campaign progression (4 level-ups between acts) ----------
+  // #1 has full data; #2–#4 carry their HP values now and gain choice/ult logic later (TODO).
+  var LEVELUPS = [
+    { hp: 6, uses: 'bestCombat' },                 // #1 → Act 2: +6 HP, +1 use best combat ability
+    { hp: 8, uses: null, choice: 'sharpOrSturdy' },// #2 → Act 3: TODO co-decision (+1 dmg die | +2 def)
+    { hp: 8, uses: null, choice: 'secondAbility' },// #3 → Act 4: TODO +1 use 2nd ability + utility boost
+    { hp: 10, uses: null, choice: 'ultimate' }     // #4 → Act 5: TODO ultimate charge
+  ];
+
   var voice = D.voice;
   function unlockOnce() { audio.unlock(); if (voice && voice.unlock) voice.unlock(); }
   document.addEventListener('pointerdown', unlockOnce);
@@ -356,12 +365,44 @@
     });
   }
 
+  // celebratory level-up overlay (reuses the .card-backdrop modal). onDone continues the scene.
+  function showLevelUpOverlay(spec, onDone) {
+    audio.sfx.win && audio.sfx.win();
+    var hpLine = spec.hp ? ('+' + spec.hp + ' здоровья') : 'силы прибыло';
+    showModal(function (back, dismiss) {
+      var box = document.createElement('div');
+      box.className = 'herocard expanded-overlay tut-card';
+      box.innerHTML =
+        '<div class="tut-step">Новый уровень!</div>' +
+        '<p class="tut-body">Герои набрались сил! ' + hpLine + ', способности усилены.</p>';
+      var go = document.createElement('button'); go.className = 'choice';
+      go.textContent = 'Дальше';
+      go.onclick = function () { audio.sfx.click(); dismiss(); if (onDone) onDone(); };
+      box.appendChild(go);
+      back.appendChild(box);
+    });
+  }
+
   // ---------- scenes ----------
   function enterScene(id) {
     setSceneBg(sceneBg(id));
     if (voice && voice.playScene) voice.playScene(id);
     party.sceneId = id; save.write(party);
     var scene = sceneMap[id];
+
+    // campaign level-up: a scene may carry `levelUp: N` (1-based). Apply once (guarded
+    // by a flag), celebrate, then re-enter the scene to continue normally.
+    if (scene.levelUp && !party.flags['levelup_' + scene.levelUp]) {
+      var spec = LEVELUPS[scene.levelUp - 1];
+      if (spec) {
+        state.applyLevelUp(party, spec);
+        state.setFlag(party, 'levelup_' + scene.levelUp, true);
+        save.write(party);
+        showLevelUpOverlay(spec, function () { enterScene(id); });
+        return;
+      }
+    }
+
     audio.playMusic(scene.music);
 
     // scripted "trapped" wound on entering the relic chamber
