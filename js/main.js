@@ -61,6 +61,10 @@
     vb.onclick = function (e) { e.target.style.opacity = (voice && voice.toggle()) ? 1 : .4; };
   })();
   document.getElementById('btn-menu').onclick = function () { if (confirm('Выйти в меню? Прогресс сохранён.')) location.reload(); };
+  (function () {
+    var hb = document.getElementById('btn-help');
+    if (hb) hb.onclick = function () { audio.sfx.click(); showHowToPlay(); }; // re-open, no auto-advance
+  })();
 
   // ---------- hero select ----------
   function startSelect() {
@@ -258,7 +262,96 @@
   function pickHero(id) {
     audio.sfx.click(); pendingSelect.push(id);
     if (pendingSelect.length < 2) { renderHeroGrid(); }
-    else { party = state.createParty(pendingSelect); save.write(party); enterScene('start'); }
+    else {
+      party = state.createParty(pendingSelect); save.write(party);
+      // warm cold open -> "how to play" (once) -> first scene
+      beginAdventure();
+    }
+  }
+
+  // ---------- cold open + onboarding (after both heroes picked, before scene 1) ----------
+  var TUT_KEY = 'skazanie_tutorial_seen_v1';
+  function tutorialSeen() {
+    if (party && party.flags && party.flags.tutorialSeen) return true;
+    try { return !!localStorage.getItem(TUT_KEY); } catch (e) { return false; }
+  }
+  function markTutorialSeen() {
+    if (party) { state.setFlag(party, 'tutorialSeen', true); save.write(party); }
+    try { localStorage.setItem(TUT_KEY, '1'); } catch (e) {}
+  }
+
+  // small reusable modal on the .card-backdrop style; returns a dismiss() fn
+  function showModal(buildInner) {
+    var back = document.createElement('div'); back.className = 'card-backdrop';
+    function dismiss() { if (back.parentNode) back.parentNode.removeChild(back); }
+    buildInner(back, dismiss);
+    document.body.appendChild(back);
+    return dismiss;
+  }
+
+  // TASK 5 — address BOTH heroes by name, then proceed
+  function beginAdventure() {
+    var names = party.heroes.map(function (h) { return h.def.name; });
+    var joined = names.join(' и ');
+    showModal(function (back, dismiss) {
+      var box = document.createElement('div');
+      box.className = 'herocard expanded-overlay tut-card';
+      box.innerHTML =
+        '<div class="tut-step">Деревня Тихий Брод</div>' +
+        '<p class="tut-body">' + joined + ' — деревня Тихий Брод ждёт вас. ' +
+        'Назовите своих героев вслух и шагните в историю.</p>';
+      var go = document.createElement('button'); go.className = 'choice';
+      go.textContent = 'Шагнуть в историю';
+      go.onclick = function () { audio.sfx.click(); dismiss(); afterColdOpen(); };
+      box.appendChild(go);
+      back.appendChild(box);
+    });
+  }
+  function afterColdOpen() {
+    if (tutorialSeen()) { enterScene('start'); return; }
+    showHowToPlay(function () { markTutorialSeen(); enterScene('start'); });
+  }
+
+  // TASK 4 — skippable 4-step "Как играть" overlay
+  var TUT_STEPS = [
+    'Вы — двое искателей приключений. Программа — ваш Мастер: она ведёт историю и судит правила.',
+    'Когда выпадает проверка — берите кубик и бросайте его сами, своей рукой (свайп вверх).',
+    'По очереди вы решаете, что делать. Имя над выбором подсказывает, чей сейчас ход.',
+    'Говорите вслух и спорьте — так веселее. Удачи!'
+  ];
+  // onDone() runs after the last step / skip. If omitted, just closes (re-open mode).
+  function showHowToPlay(onDone) {
+    var step = 0;
+    showModal(function (back, dismiss) {
+      var box = document.createElement('div');
+      box.className = 'herocard expanded-overlay tut-card';
+      back.appendChild(box);
+      function finish() { dismiss(); if (onDone) onDone(); }
+      function render() {
+        var dots = '';
+        for (var i = 0; i < TUT_STEPS.length; i++) dots += '<i class="' + (i === step ? 'on' : '') + '"></i>';
+        box.innerHTML =
+          '<div class="tut-step">Как играть · ' + (step + 1) + ' / ' + TUT_STEPS.length + '</div>' +
+          '<p class="tut-body">' + TUT_STEPS[step] + '</p>' +
+          '<div class="tut-dots">' + dots + '</div>';
+        var primary = document.createElement('button'); primary.className = 'choice';
+        primary.textContent = (step < TUT_STEPS.length - 1) ? 'Дальше' : 'Понятно, начать!';
+        primary.onclick = function () {
+          audio.sfx.click();
+          if (step < TUT_STEPS.length - 1) { step++; render(); } else finish();
+        };
+        box.appendChild(primary);
+        if (step < TUT_STEPS.length - 1) {
+          var skip = document.createElement('button');
+          skip.className = 'choice card-close';
+          skip.style.background = 'linear-gradient(180deg,#2a1a0c,#160d05)';
+          skip.textContent = 'Пропустить';
+          skip.onclick = function () { audio.sfx.click(); finish(); };
+          box.appendChild(skip);
+        }
+      }
+      render();
+    });
   }
 
   // ---------- scenes ----------

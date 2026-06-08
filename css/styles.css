@@ -308,6 +308,20 @@ h2,h3{font-family:'Forum', Georgia, serif;color:var(--gold);}
   color:#161008;background:var(--gold);border-radius:4px;padding:1px 6px;vertical-align:middle;
   font-family:'Forum',Georgia,serif;}
 
+/* ===== "Как играть" tutorial steps ===== */
+.tut-card{flex:0 1 460px;max-width:460px;width:100%;text-align:center;}
+.tut-step{font-family:'Forum',Georgia,serif;color:var(--gold);letter-spacing:.06em;
+  font-size:.8rem;opacity:.8;margin-bottom:6px;}
+.tut-body{font-family:'Lora',Georgia,serif;font-size:1.12rem;line-height:1.6;
+  color:var(--text);margin:0 auto 16px;max-width:36ch;}
+.tut-dots{display:flex;gap:7px;justify-content:center;margin:4px 0 14px;}
+.tut-dots i{width:8px;height:8px;border-radius:50%;background:rgba(212,168,83,.3);
+  border:1px solid rgba(212,168,83,.5);}
+.tut-dots i.on{background:var(--gold);}
+
+/* re-open tutorial button in topbar */
+#btn-help{}
+
 /* in #hero-detail the gold mini-bars sit on the parchment, so darken their track for contrast */
 #hero-detail .statbar{background:rgba(42,28,12,.5);border-color:rgba(120,80,30,.5);}
 #hero-detail .stat-name{color:var(--ink);}
