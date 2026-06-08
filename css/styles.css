@@ -3,6 +3,10 @@
 @font-face{font-family:'Lora';src:url('../assets/fonts/Lora-Regular.woff2') format('woff2');font-weight:400;font-display:swap;}
 @font-face{font-family:'Lora';src:url('../assets/fonts/Lora-Italic.woff2') format('woff2');font-style:italic;font-weight:400;font-display:swap;}
 @font-face{font-family:'Lora';src:url('../assets/fonts/Lora-Bold.woff2') format('woff2');font-weight:700;font-display:swap;}
+/* Playfair Display (Cyrillic) — hero names & card section labels */
+@font-face{font-family:'Playfair Display';src:url('../assets/fonts/PlayfairDisplay-Bold.woff2') format('woff2');font-weight:700;font-display:swap;}
+@font-face{font-family:'Playfair Display';src:url('../assets/fonts/PlayfairDisplay-Black.woff2') format('woff2');font-weight:900;font-display:swap;}
+@font-face{font-family:'Playfair Display';src:url('../assets/fonts/PlayfairDisplay-Italic.woff2') format('woff2');font-style:italic;font-weight:700;font-display:swap;}
 
 /* ===== tokens ===== */
 :root{
@@ -130,3 +134,139 @@ h2,h3{font-family:'Forum', Georgia, serif;color:var(--gold);}
   font-size:3rem;line-height:1;background:#1c1107;color:var(--gold);
   border-bottom:2px solid var(--gold);
   box-shadow:inset 0 0 30px rgba(0,0,0,.6);}
+
+/* ============================================================
+   EXPANDED HERO CARD — the candlelit "open grimoire" character sheet
+   ============================================================ */
+
+/* refined hero typography shared by select-detail and the in-play card */
+.hero-name{font-family:'Playfair Display','Forum',Georgia,serif;font-weight:900;
+  color:var(--gold);letter-spacing:.01em;line-height:1.05;margin:0;
+  text-shadow:0 0 8px rgba(255,200,80,.55),0 0 22px rgba(255,160,30,.3),2px 2px 4px rgba(0,0,0,.85);}
+.hero-role{font-family:'Forum',Georgia,serif;text-transform:uppercase;letter-spacing:.22em;
+  font-size:.72em;color:var(--parchment);opacity:.9;margin:.2em 0 0;}
+.hero-section-label{font-family:'Playfair Display','Forum',Georgia,serif;font-weight:700;
+  font-size:.74rem;text-transform:uppercase;letter-spacing:.18em;color:var(--gold);
+  margin:0 0 .35em;display:flex;align-items:center;gap:.5em;}
+.hero-section-label::after{content:'';flex:1;height:1px;
+  background:linear-gradient(90deg,rgba(212,168,83,.6),transparent);}
+
+/* upgraded hero-select detail panel typography */
+#hero-detail h3{font-family:'Playfair Display','Forum',Georgia,serif;font-weight:900;font-size:1.7rem;
+  color:var(--ink);text-shadow:none;margin:.1em 0 .3em;}
+#hero-detail .flavor{font-family:'Lora',Georgia,serif;font-style:italic;font-size:1.02rem;line-height:1.7;}
+#hero-detail b{font-family:'Lora',Georgia,serif;font-weight:700;}
+
+/* the party rail that holds both cards during play */
+.party-rail{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;
+  margin:18px auto 4px;max-width:920px;}
+
+/* the card itself */
+.herocard{position:relative;flex:1 1 300px;min-width:0;max-width:430px;
+  background:linear-gradient(165deg,#241910 0%,#160d05 100%);
+  border:2px solid var(--gold);border-radius:12px;padding:16px 16px 14px;
+  box-shadow:0 12px 34px rgba(0,0,0,.6),inset 0 0 40px rgba(120,80,30,.18);
+  overflow:hidden;transform-origin:center bottom;
+  animation:cardrise .65s cubic-bezier(.2,.7,.25,1) both;}
+.herocard.downed{filter:grayscale(.7) brightness(.7);}
+.herocard:hover{transform:translateY(-4px);box-shadow:0 18px 44px rgba(0,0,0,.7),inset 0 0 40px rgba(120,80,30,.22);}
+/* idle sheen sweeping across the tome */
+.herocard::after{content:'';position:absolute;inset:0;pointer-events:none;border-radius:12px;
+  background:linear-gradient(115deg,transparent 30%,rgba(255,220,140,.10) 47%,rgba(255,220,140,.18) 50%,transparent 67%);
+  transform:translateX(-120%);animation:sheen 7s ease-in-out 1.2s infinite;}
+/* active player: glowing gold border + gentle scale + faster shimmer */
+.herocard.active{border-color:#ffe2a0;transform:translateY(-2px) scale(1.025);
+  box-shadow:0 0 0 1px rgba(255,226,160,.7),0 0 26px rgba(255,200,90,.55),0 16px 40px rgba(0,0,0,.6);
+  animation:cardrise .65s cubic-bezier(.2,.7,.25,1) both, activeglow 2.4s ease-in-out .65s infinite;}
+
+@keyframes cardrise{
+  0%{opacity:0;transform:perspective(800px) rotateX(14deg) translateY(34px) scale(.96);}
+  100%{opacity:1;transform:perspective(800px) rotateX(0) translateY(0) scale(1);}
+}
+@keyframes activeglow{
+  0%,100%{box-shadow:0 0 0 1px rgba(255,226,160,.7),0 0 20px rgba(255,200,90,.45),0 16px 40px rgba(0,0,0,.6);}
+  50%{box-shadow:0 0 0 1px rgba(255,226,160,.9),0 0 34px rgba(255,210,110,.75),0 16px 40px rgba(0,0,0,.6);}
+}
+@keyframes sheen{0%,72%{transform:translateX(-120%);}88%,100%{transform:translateX(120%);}}
+
+/* header: framed portrait + name/role */
+.herocard-head{display:flex;gap:13px;align-items:center;margin-bottom:12px;}
+.herocard-portrait{width:74px;height:74px;flex:none;border-radius:8px;object-fit:cover;
+  border:2px solid var(--gold);background:#1c1107;
+  box-shadow:inset 0 0 18px rgba(0,0,0,.8),0 2px 10px rgba(0,0,0,.5);}
+.herocard-portrait.crest-fallback{width:74px;height:74px;aspect-ratio:auto;font-size:2.1rem;
+  border:2px solid var(--gold);border-radius:8px;}
+.herocard-head .hero-name{font-size:1.55rem;}
+
+/* HP block */
+.herocard-hp{margin:2px 0 12px;}
+.herocard-hp .hp-row{display:flex;justify-content:space-between;align-items:baseline;
+  font-family:'Forum',Georgia,serif;font-size:.78rem;letter-spacing:.08em;color:var(--parchment);margin-bottom:3px;}
+.herocard-hp .hpbar{height:13px;}
+
+/* stat mini-bars */
+.statgrid{display:grid;grid-template-columns:1fr 1fr;gap:7px 16px;margin:2px 0 13px;}
+.statrow{display:flex;align-items:center;gap:8px;}
+.statrow .stat-name{font-family:'Forum',Georgia,serif;font-size:.74rem;letter-spacing:.05em;
+  color:var(--parchment);width:62px;flex:none;}
+.statbar{flex:1;height:7px;border-radius:4px;background:#160d05;border:1px solid rgba(212,168,83,.4);overflow:hidden;}
+.statbar > i{display:block;height:100%;border-radius:4px;
+  background:linear-gradient(90deg,#9a6b1e,var(--gold));box-shadow:0 0 6px rgba(212,168,83,.5);}
+
+/* abilities (МОЖЕТ) */
+.herocard-block{margin-bottom:11px;}
+.ability-list{list-style:none;margin:0;padding:0;}
+.ability-list li{font-family:'Lora',Georgia,serif;font-size:.9rem;line-height:1.5;
+  color:var(--text);margin-bottom:4px;padding-left:14px;position:relative;}
+.ability-list li::before{content:'✦';position:absolute;left:0;top:0;color:var(--gold);font-size:.78em;}
+.ability-list b{font-family:'Lora',Georgia,serif;font-weight:700;color:#f4e3b0;}
+
+/* strengths / weaknesses */
+.swrow{display:flex;gap:8px;align-items:flex-start;font-family:'Lora',Georgia,serif;
+  font-size:.86rem;line-height:1.45;margin-bottom:5px;}
+.swrow .sw-tag{font-family:'Forum',Georgia,serif;font-size:.66rem;letter-spacing:.12em;
+  text-transform:uppercase;flex:none;padding:2px 7px;border-radius:4px;margin-top:2px;}
+.swrow.is-strength .sw-tag{color:#9be6c0;background:rgba(46,107,79,.32);border:1px solid var(--emerald);}
+.swrow.is-strength{color:#cfe9da;}
+.swrow.is-weakness .sw-tag{color:#e7a3a3;background:rgba(139,0,0,.25);border:1px solid #7a2b2b;}
+.swrow.is-weakness{color:#d8c2bb;}
+
+/* compact bottom bar (mobile collapsed state) */
+.herocard.compact{display:flex;align-items:center;gap:12px;padding:9px 12px;cursor:pointer;
+  flex:1 1 100%;max-width:none;animation:none;}
+.herocard.compact::after{animation:none;}
+.herocard.compact .herocard-portrait{width:46px;height:46px;}
+.herocard.compact .herocard-portrait.crest-fallback{width:46px;height:46px;font-size:1.4rem;}
+.herocard.compact .compact-body{flex:1;min-width:0;}
+.herocard.compact .hero-name{font-size:1.1rem;}
+.compact-hint{font-family:'Forum',Georgia,serif;font-size:.62rem;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--gold);opacity:.75;flex:none;}
+
+/* tap-to-expand overlay for the compact (mobile) cards */
+.card-backdrop{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;
+  padding:18px;background:rgba(10,6,2,.78);backdrop-filter:blur(2px);
+  animation:fadein .2s ease both;}
+.card-backdrop .herocard.expanded-overlay{flex:0 1 420px;max-width:420px;width:100%;
+  max-height:88vh;overflow:auto;}
+.card-backdrop .card-close{margin-top:12px;}
+@keyframes fadein{from{opacity:0;}to{opacity:1;}}
+
+/* in #hero-detail the gold mini-bars sit on the parchment, so darken their track for contrast */
+#hero-detail .statbar{background:rgba(42,28,12,.5);border-color:rgba(120,80,30,.5);}
+#hero-detail .stat-name{color:var(--ink);}
+#hero-detail .ability-list li{color:var(--ink);}
+#hero-detail .ability-list b{color:var(--ink);}
+#hero-detail .ability-list li::before{color:#9a6b1e;}
+#hero-detail .hero-section-label{color:#7a4e12;}
+#hero-detail .hero-section-label::after{background:linear-gradient(90deg,rgba(122,78,18,.5),transparent);}
+#hero-detail .swrow.is-strength{color:#1f4733;}
+#hero-detail .swrow.is-weakness{color:#5a1414;}
+
+/* combat: cards sit below the action buttons; reduce their motion so the fight stays the focus */
+#combat-heroes .herocard{flex:1 1 280px;}
+#combat-heroes .herocard::after{animation-duration:9s;}
+
+@media(max-width:680px){
+  .party-rail{flex-direction:column;gap:9px;}
+  .herocard{max-width:none;}
+}

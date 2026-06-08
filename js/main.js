@@ -67,6 +67,131 @@
     img.parentNode.replaceChild(crest, img);
   }
 
+  // ---------- reusable expanded hero card (used during play) ----------
+  var STAT_LABELS = { str: 'Сила', dex: 'Ловкость', int: 'Ум', cha: 'Харизма' };
+  var STAT_ORDER = ['str', 'dex', 'int', 'cha'];
+
+  // build the framed portrait (img with emoji-crest onerror fallback, reused everywhere)
+  function buildPortrait(def, cls) {
+    var img = document.createElement('img');
+    img.className = cls;
+    img.src = def.portrait; img.alt = def.name;
+    img.onerror = function () {
+      if (!img.parentNode) return;
+      var crest = document.createElement('div');
+      crest.className = cls + ' crest-fallback';
+      crest.textContent = def.crest || '⚔️';
+      img.parentNode.replaceChild(crest, img);
+    };
+    return img;
+  }
+
+  function statBars(def) {
+    var grid = document.createElement('div'); grid.className = 'statgrid';
+    STAT_ORDER.forEach(function (k) {
+      var row = document.createElement('div'); row.className = 'statrow';
+      var pct = Math.round((def.stats[k] / 5) * 100);
+      row.innerHTML = '<span class="stat-name">' + STAT_LABELS[k] + '</span>' +
+        '<span class="statbar"><i style="width:' + pct + '%"></i></span>';
+      grid.appendChild(row);
+    });
+    return grid;
+  }
+
+  // hero: a runtime party-hero ({def, hp, maxHp, downed}). opts: {active, compact}
+  // returns a DOM node. Compact cards expand to the full card on tap.
+  function renderHeroCard(hero, opts) {
+    opts = opts || {};
+    var def = hero.def;
+    var hp = (typeof hero.hp === 'number') ? hero.hp : def.maxHp;
+    var maxHp = hero.maxHp || def.maxHp;
+    var pct = Math.max(0, Math.round((hp / maxHp) * 100));
+
+    var card = document.createElement('div');
+    card.className = 'herocard';
+    if (opts.active) card.classList.add('active');
+    if (hero.downed) card.classList.add('downed');
+
+    if (opts.compact) {
+      // collapsed bottom-bar: portrait + name + HP, taps to expand the full card
+      card.classList.add('compact');
+      var body = document.createElement('div'); body.className = 'compact-body';
+      body.innerHTML = '<div class="hero-name">' + def.name + (hero.downed ? ' (без сознания)' : '') + '</div>' +
+        '<div class="hpbar"><i style="width:' + pct + '%"></i></div>';
+      card.appendChild(buildPortrait(def, 'herocard-portrait'));
+      card.appendChild(body);
+      var hint = document.createElement('span'); hint.className = 'compact-hint'; hint.textContent = 'подробнее';
+      card.appendChild(hint);
+      card.onclick = function () {
+        var full = renderHeroCard(hero, { active: opts.active, compact: false });
+        full.classList.add('expanded-overlay');
+        var close = document.createElement('button'); close.className = 'choice card-close';
+        close.textContent = 'Закрыть';
+        full.appendChild(close);
+        var back = document.createElement('div'); back.className = 'card-backdrop';
+        back.appendChild(full);
+        function dismiss() { if (back.parentNode) back.parentNode.removeChild(back); }
+        back.onclick = function (e) { if (e.target === back) dismiss(); };
+        close.onclick = dismiss;
+        document.body.appendChild(back);
+      };
+      return card;
+    }
+
+    // ---- full expanded card ----
+    var head = document.createElement('div'); head.className = 'herocard-head';
+    head.appendChild(buildPortrait(def, 'herocard-portrait'));
+    var titles = document.createElement('div');
+    titles.innerHTML = '<div class="hero-name">' + def.name + '</div>' +
+      '<div class="hero-role">' + def.role + '</div>';
+    head.appendChild(titles);
+    card.appendChild(head);
+
+    // HP block
+    var hpBlock = document.createElement('div'); hpBlock.className = 'herocard-hp';
+    hpBlock.innerHTML = '<div class="hp-row"><span>Здоровье</span><span>' + hp + ' / ' + maxHp + '</span></div>' +
+      '<div class="hpbar"><i style="width:' + pct + '%"></i></div>';
+    card.appendChild(hpBlock);
+
+    // stats
+    card.appendChild(statBars(def));
+
+    // МОЖЕТ — abilities
+    var abilBlock = document.createElement('div'); abilBlock.className = 'herocard-block';
+    var abilLabel = document.createElement('div'); abilLabel.className = 'hero-section-label';
+    abilLabel.textContent = 'Может';
+    var ul = document.createElement('ul'); ul.className = 'ability-list';
+    def.abilities.forEach(function (a) {
+      var li = document.createElement('li');
+      li.innerHTML = '<b>' + a.name + '</b> — ' + a.desc;
+      ul.appendChild(li);
+    });
+    abilBlock.appendChild(abilLabel); abilBlock.appendChild(ul);
+    card.appendChild(abilBlock);
+
+    // СИЛЬН. / СЛАБ.
+    var swBlock = document.createElement('div'); swBlock.className = 'herocard-block';
+    swBlock.innerHTML =
+      '<div class="swrow is-strength"><span class="sw-tag">Сильн.</span><span>' + (def.strength || '') + '</span></div>' +
+      '<div class="swrow is-weakness"><span class="sw-tag">Слаб.</span><span>' + (def.weakness || '') + '</span></div>';
+    card.appendChild(swBlock);
+
+    return card;
+  }
+
+  // render both party cards into a rail. activeIdx = highlighted hero (turn / active player).
+  // On narrow screens we default to compact (expand-on-tap) so the narration stays readable.
+  function renderParty(railEl, activeIdx) {
+    if (!railEl || !party) return;
+    railEl.innerHTML = '';
+    var compact = window.matchMedia && window.matchMedia('(max-width:680px)').matches;
+    party.heroes.forEach(function (h, i) {
+      var card = renderHeroCard(h, { active: i === activeIdx, compact: compact });
+      card.setAttribute('data-idx', i); // so combat flash/float helpers can find it
+      railEl.appendChild(card);
+    });
+  }
+
   function renderHeroGrid() {
     var grid = document.getElementById('hero-grid'); grid.innerHTML = '';
     document.getElementById('select-prompt').textContent = 'Игрок ' + (pendingSelect.length + 1) + ' — выбери героя';
@@ -87,12 +212,19 @@
   }
   function showHeroDetail(h) {
     var d = document.getElementById('hero-detail');
-    var dots = function (n) { return '●●●●●'.slice(0, n) + '○○○○○'.slice(0, 5 - n); };
+    var stats = STAT_ORDER.map(function (k) {
+      var pct = Math.round((h.stats[k] / 5) * 100);
+      return '<div class="statrow"><span class="stat-name">' + STAT_LABELS[k] + '</span>' +
+        '<span class="statbar"><i style="width:' + pct + '%"></i></span></div>';
+    }).join('');
     d.innerHTML = '<h3>' + h.name + ' — ' + h.role + '</h3><p class="flavor">' + h.story + '</p>' +
-      '<p>Сила ' + dots(h.stats.str) + ' · Ловкость ' + dots(h.stats.dex) + ' · Ум ' + dots(h.stats.int) + ' · Харизма ' + dots(h.stats.cha) + '</p>' +
-      '<p>❤ ' + h.maxHp + ' · 🛡 ' + h.defense + '</p>' +
-      '<p>' + h.abilities.map(function (a) { return '<b>' + a.name + '</b> — ' + a.desc; }).join('<br>') + '</p>' +
-      '<button class="choice" id="pick-' + h.id + '">Выбрать ' + h.name + '</button>';
+      '<div class="statgrid">' + stats + '</div>' +
+      '<p style="font-family:\'Forum\',Georgia,serif;letter-spacing:.05em;">❤ ' + h.maxHp + ' · 🛡 ' + h.defense + '</p>' +
+      '<div class="hero-section-label">Может</div>' +
+      '<ul class="ability-list">' + h.abilities.map(function (a) { return '<li><b>' + a.name + '</b> — ' + a.desc + '</li>'; }).join('') + '</ul>' +
+      '<div class="swrow is-strength"><span class="sw-tag">Сильн.</span><span>' + (h.strength || '') + '</span></div>' +
+      '<div class="swrow is-weakness"><span class="sw-tag">Слаб.</span><span>' + (h.weakness || '') + '</span></div>' +
+      '<button class="choice" id="pick-' + h.id + '" style="margin-top:14px;">Выбрать ' + h.name + '</button>';
     document.getElementById('pick-' + h.id).onclick = function () { pickHero(h.id); };
   }
   function pickHero(id) {
@@ -124,6 +256,8 @@
     if (scene.combat) return startSceneCombat(scene);
     ui.show('screen-scene');
     document.getElementById('topbar').style.display = 'block';
+    // (re)render both hero cards for the current party; narration highlights the active player
+    renderParty(document.getElementById('scene-party'), party.activePlayer);
     var textEl = document.getElementById('scene-text');
     var actions = document.getElementById('scene-actions'); actions.innerHTML = '';
     textEl.onclick = function () { ui.skipTyping(textEl); };
@@ -260,15 +394,10 @@
       div.innerHTML = art + '<b>' + e.name + '</b><div class="hpbar"><i style="width:' + Math.round(e.hp / e.maxHp * 100) + '%"></i></div>';
       enemiesEl.appendChild(div);
     });
-    var heroesEl = document.getElementById('combat-heroes'); heroesEl.innerHTML = '';
-    party.heroes.forEach(function (h, i) {
-      var div = document.createElement('div'); div.className = 'panel'; div.style.margin = '4px';
-      div.setAttribute('data-idx', i);
-      div.innerHTML = '<b>' + h.def.name + (h.downed ? ' (без сознания)' : '') + '</b>' +
-        '<div class="hpbar"><i style="width:' + ui.hpPercent(h) + '%"></i></div>';
-      if (i === combatCtx.heroTurn && !h.downed) div.style.outline = '2px solid var(--gold)';
-      heroesEl.appendChild(div);
-    });
+    // rich hero cards with live HP; highlight whose turn it is (skip a downed hero)
+    var hero = party.heroes[combatCtx.heroTurn];
+    var activeIdx = (hero && !hero.downed) ? combatCtx.heroTurn : -1;
+    renderParty(document.getElementById('combat-heroes'), activeIdx);
     document.getElementById('combat-log').innerHTML = party.combat.log.slice(-6).map(function (l) { return '<div>' + l + '</div>'; }).join('');
     renderCombatActions();
   }
