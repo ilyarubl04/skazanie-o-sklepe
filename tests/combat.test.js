@@ -158,6 +158,46 @@ test('animal_call summons a beast that damages an enemy and expires after 2 roun
   assert(!p.combat.ally, 'ally gone after 2 rounds');
 });
 
+// ---- smarter AI: enemies focus the lowest-current-HP non-downed hero ----
+test('enemy focuses the lower-HP hero instead of a random one', function () {
+  var p = state.createParty(['brand', 'brand']); // identical defense so HP is the only difference
+  state.damageHero(p.heroes[0], 10);             // hero 0 is now the weaker target
+  combat.startCombat(p, [{ type: 'skeleton' }]);
+  // maxRng would make uniform-random pick index 1 (the HEALTHY hero); focus must override that
+  var lowBefore = p.heroes[0].hp, highBefore = p.heroes[1].hp;
+  combat.enemiesTurn(p, maxRng());               // maxRng => the lone skeleton always hits
+  assert(p.heroes[0].hp < lowBefore, 'low-HP hero took the hit');
+  assertEqual(p.heroes[1].hp, highBefore, 'high-HP hero was spared');
+});
+
+// ---- Morven's dark wave AoE hits BOTH heroes on a wave turn ----
+test('Morven unleashes a dark wave that damages both non-downed heroes', function () {
+  var p = state.createParty(['brand', 'thea']); // sturdy enough to survive a few rounds
+  combat.startCombat(p, [{ type: 'morven' }]);
+  var sawWave = false;
+  for (var i = 0; i < 3 && !sawWave; i++) {
+    var before = p.heroes.map(function (h) { return h.hp; });
+    var logLen = p.combat.log.length;
+    combat.enemiesTurn(p, maxRng());
+    var waveLogged = p.combat.log.slice(logLen).some(function (l) { return /тёмную волну/.test(l); });
+    if (waveLogged) {
+      sawWave = true;
+      assert(p.heroes[0].hp < before[0], 'hero 0 took wave damage');
+      assert(p.heroes[1].hp < before[1], 'hero 1 took wave damage');
+    }
+  }
+  assert(sawWave, 'a wave turn occurred within the first 3 boss turns');
+});
+
+// ---- boss AoE/targeting must not crash when one hero is already downed ----
+test('boss turn with one hero downed does not throw and spares the downed hero', function () {
+  var p = state.createParty(['brand', 'lira']);
+  state.damageHero(p.heroes[1], 999); // Lira is downed
+  combat.startCombat(p, [{ type: 'morven' }]);
+  for (var i = 0; i < 4; i++) combat.enemiesTurn(p, maxRng()); // includes a wave turn
+  assert(p.heroes[1].downed, 'downed hero stays down (not revived/targeted)');
+});
+
 // ---- guard_ally (Brand's guard): redirects a hit to the guardian ----
 test('guard redirects an enemy hit from the ally to Brand, then is consumed', function () {
   var p = state.createParty(['brand', 'lira']);

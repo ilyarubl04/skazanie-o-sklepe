@@ -156,6 +156,16 @@
     var d = hero.def.defense; hero.statuses.forEach(function (s) { if (s.type === 'def') d += s.value; }); return d;
   }
 
+  // smarter AI: pick the lowest-current-HP target; ties broken randomly so it isn't fully predictable
+  function pickWeakest(targets, rng) {
+    var min = Infinity;
+    targets.forEach(function (h) { if (h.hp < min) min = h.hp; });
+    var weakest = targets.filter(function (h) { return h.hp === min; });
+    if (weakest.length === 1) return weakest[0];
+    var idx = Math.floor((rng || Math.random)() * weakest.length);
+    return weakest[idx >= weakest.length ? weakest.length - 1 : idx];
+  }
+
   function findGuardian(party) {
     var hs = party.heroes;
     for (var i = 0; i < hs.length; i++) {
@@ -201,12 +211,21 @@
           c.enemies.push(makeEnemy({ type: enemy.def.special.summon }));
           c.log.push(enemy.name + ' поднимает нового скелета!');
         }
+        // every 3rd boss turn: a dark wave hits BOTH standing heroes instead of one strike
+        if (enemy.def.special.wave && enemy.turnCount % 3 === 0) {
+          c.log.push(enemy.name + ' обрушивает тёмную волну!');
+          party.heroes.filter(function (h) { return !h.downed; }).forEach(function (h) {
+            var wdmg = dice.roll(enemy.def.special.wave, rng).total;
+            state.damageHero(h, wdmg);
+            c.log.push(h.def.name + ' захлёстнут волной — ' + wdmg + ' урона.');
+          });
+          return; // the wave replaces this enemy's single attack this turn
+        }
       }
-      // choose a random alive hero as target
+      // focus the lowest-current-HP non-downed hero (with a small random tie-break)
       var targets = party.heroes.filter(function (h) { return !h.downed; });
       if (targets.length === 0) return;
-      var idx = Math.floor((rng || Math.random)() * targets.length);
-      var target = targets[idx === targets.length ? targets.length - 1 : idx];
+      var target = pickWeakest(targets, rng);
       var toHit = dice.rollD20(enemy.def.attack.bonus - (enemy.atkPenalty || 0), rng);
       if (toHit.total >= heroDefense(target)) {
         var dmg = dice.roll(enemy.def.attack.damage, rng).total;
