@@ -8,6 +8,23 @@ var state = require('../js/state.js');
 function maxRng() { return function () { return 0.999; }; }
 function minRng() { return function () { return 0; }; }
 
+// --- test-only multi-phase boss injected into the bestiary (does not ship) ---
+// Phase 0 (>66%): plain melee.  Phase 1 (66–33%): AoE wave + summon wraith.
+// Phase 2 (<33%): enrage + faster wave. Mirrors the shepherd's shape.
+var ENEMIES = (typeof window !== 'undefined' ? window : global).DnD.ENEMIES;
+ENEMIES.test_phaser = {
+  id: 'test_phaser', name: 'Многоликий', art: '',
+  maxHp: 100, defense: 8, attack: { bonus: 9, damage: 'd6' },
+  boss: true,
+  special: {
+    summon: 'skeleton', summonEvery: 99, // base cadence rare, phases override
+    phases: [
+      { at: 0.66, wave: 'd8', waveEvery: 3, summon: 'wraith', summonEvery: 3 },
+      { at: 0.33, enrage: true, wave: 'd8', waveEvery: 2 }
+    ]
+  }
+};
+
 test('startCombat creates enemy instances with hp', function () {
   var p = state.createParty(['brand', 'lira']);
   combat.startCombat(p, [{ type: 'skeleton' }, { type: 'skeleton' }]);
@@ -279,4 +296,96 @@ test('guard redirects an enemy hit from the ally to Brand, then is consumed', fu
   assert(p.heroes[0].hp < brandHpBefore, 'guardian (Brand) took the damage');
   var stillGuarding = p.heroes[0].statuses.some(function (s) { return s.type === 'guard'; });
   assertEqual(stillGuarding, false, 'guard consumed');
+});
+
+// ---- multi-phase final boss (Stage 5: special.phases) ----
+test('multi-phase boss starts at phaseIndex 0 and does not transition above the first threshold', function () {
+  var p = state.createParty(['brand', 'thea']);
+  combat.startCombat(p, [{ type: 'test_phaser' }]);
+  var boss = p.combat.enemies[0];
+  assertEqual(boss.phaseIndex || 0, 0, 'no phase entered while full HP');
+  combat.enemiesTurn(p, maxRng());
+  assertEqual(boss.phaseIndex || 0, 0, 'still phase 0 above 66%');
+  assert(!boss.phased, 'phases path does not set the legacy phased flag');
+});
+test('multi-phase boss enters phase 1 below 66% and logs a flavor line', function () {
+  var p = state.createParty(['brand', 'thea']);
+  combat.startCombat(p, [{ type: 'test_phaser' }]);
+  var boss = p.combat.enemies[0];
+  boss.hp = Math.floor(boss.maxHp * 0.6); // below 66%, above 33%
+  var logLen = p.combat.log.length;
+  combat.enemiesTurn(p, maxRng());
+  assertEqual(boss.phaseIndex, 1, 'advanced to phase 1');
+  assert(p.combat.log.slice(logLen).length > 0, 'a phase-transition line was logged');
+});
+test('multi-phase boss enters phase 2 below 33% with enrage', function () {
+  var p = state.createParty(['brand', 'thea']);
+  combat.startCombat(p, [{ type: 'test_phaser' }]);
+  var boss = p.combat.enemies[0];
+  boss.hp = Math.floor(boss.maxHp * 0.2); // below 33%
+  combat.enemiesTurn(p, maxRng());
+  assertEqual(boss.phaseIndex, 2, 'jumped straight to phase 2 (catches up past skipped thresholds)');
+});
+test('multi-phase boss unleashes its AoE wave in phase 1 (both heroes hit on a wave turn)', function () {
+  var p = state.createParty(['brand', 'brand']); // sturdy
+  combat.startCombat(p, [{ type: 'test_phaser' }]);
+  var boss = p.combat.enemies[0];
+  boss.hp = Math.floor(boss.maxHp * 0.6); // in phase 1
+  var sawWave = false;
+  for (var i = 0; i < 4 && !sawWave; i++) {
+    boss.hp = Math.floor(boss.maxHp * 0.6); // keep it in phase 1 across turns
+    var before = p.heroes.map(function (h) { return h.hp; });
+    var logLen = p.combat.log.length;
+    combat.enemiesTurn(p, maxRng());
+    if (p.combat.log.slice(logLen).some(function (l) { return /волн/.test(l); })) {
+      sawWave = true;
+      assert(p.heroes[0].hp < before[0] && p.heroes[1].hp < before[1], 'wave hit both heroes');
+    }
+  }
+  assert(sawWave, 'phase-1 boss eventually unleashes its wave');
+});
+test('multi-phase boss summons its phase-specific minion (wraith) in phase 1', function () {
+  var p = state.createParty(['brand', 'thea']);
+  combat.startCombat(p, [{ type: 'test_phaser' }]);
+  var boss = p.combat.enemies[0];
+  var hadWraith = false;
+  for (var i = 0; i < 6 && !hadWraith; i++) {
+    boss.hp = Math.floor(boss.maxHp * 0.5); // keep in phase 1
+    combat.enemiesTurn(p, maxRng());
+    hadWraith = p.combat.enemies.some(function (e) { return e.type === 'wraith'; });
+  }
+  assert(hadWraith, 'phase-1 boss summons a wraith');
+});
+test('multi-phase boss deals more melee in the enraged phase 2 than in phase 0', function () {
+  // phase-0 baseline melee
+  var a = state.createParty(['brand', 'brand']);
+  combat.startCombat(a, [{ type: 'test_phaser' }]);
+  var beforeA = a.heroes.map(function (h) { return h.hp; });
+  combat.enemiesTurn(a, maxRng());
+  var dmgA = Math.max(beforeA[0] - a.heroes[0].hp, beforeA[1] - a.heroes[1].hp);
+  // phase-2 enraged melee (force a melee turn, not a wave turn, by using turnCount parity)
+  var b = state.createParty(['brand', 'brand']);
+  combat.startCombat(b, [{ type: 'test_phaser' }]);
+  var bossB = b.combat.enemies[0];
+  bossB.hp = Math.floor(bossB.maxHp * 0.2); // phase 2
+  // advance to phase 2 first (this turn) without measuring, then measure a melee turn
+  var meleeDmg = 0;
+  for (var t = 0; t < 6 && meleeDmg === 0; t++) {
+    bossB.hp = Math.floor(bossB.maxHp * 0.2);
+    var bb = b.heroes.map(function (h) { return h.hp; });
+    var ll = b.combat.log.length;
+    combat.enemiesTurn(b, maxRng());
+    var wasWave = b.combat.log.slice(ll).some(function (l) { return /волн/.test(l); });
+    if (!wasWave) meleeDmg = Math.max(bb[0] - b.heroes[0].hp, bb[1] - b.heroes[1].hp);
+  }
+  assert(meleeDmg > dmgA, 'enraged phase-2 melee (' + meleeDmg + ') beats phase-0 (' + dmgA + ')');
+});
+test('a boss WITHOUT phases (Morven) is unchanged by the multi-phase code', function () {
+  var p = state.createParty(['brand', 'thea']);
+  combat.startCombat(p, [{ type: 'morven' }]);
+  var boss = p.combat.enemies[0];
+  boss.hp = 1;
+  combat.enemiesTurn(p, maxRng());
+  assertEqual(boss.phaseIndex || 0, 0, 'no phaseIndex on a phase-less boss');
+  assert(!boss.phased, 'Morven never becomes phased');
 });

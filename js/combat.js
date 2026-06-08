@@ -217,29 +217,62 @@
     aliveEnemies(c).forEach(function (enemy) {
       enemy.turnCount++;
       var sp = enemy.boss ? enemy.def.special : null;
-      // ---- phase / enrage transition (data-driven, backward-compatible) ----
-      // a boss with special.phaseAt enters a new phase once its HP fraction drops below it.
-      if (sp && sp.phaseAt && !enemy.phased && (enemy.hp / enemy.maxHp) < sp.phaseAt) {
-        enemy.phased = true;
-        c.log.push(enemy.name + ' входит в ярость!');
-      }
-      var enraged = enemy.phased && sp && sp.enrage; // damage/aggression boost while enraged
-      // boss summon + wave
-      if (sp) {
-        // enraged bosses summon one step faster (every-1 sooner)
-        var every = sp.summonEvery;
-        if (enraged && every > 1) every = every - 1;
-        if (every && enemy.turnCount % every === 0) {
-          c.enemies.push(makeEnemy({ type: sp.summon }));
-          c.log.push(enemy.name + ' поднимает нового скелета!');
+      var enraged;     // damage/aggression boost while enraged
+      var summon;      // current minion type
+      var summonEvery; // current summon cadence
+      var wave;        // current AoE wave die (or null)
+      var waveEvery;   // current wave cadence
+
+      if (sp && sp.phases) {
+        // ---- MULTI-PHASE boss (special.phases array, highest `at` first) ----
+        // Advance phaseIndex for EVERY threshold the HP fraction has dropped below
+        // (so a big hit that skips a phase still lands on the right one). The ACTIVE
+        // phase is phases[phaseIndex-1]; phaseIndex 0 means "still in the opening phase".
+        if (enemy.phaseIndex === undefined) enemy.phaseIndex = 0;
+        var frac = enemy.hp / enemy.maxHp;
+        while (enemy.phaseIndex < sp.phases.length &&
+               frac < sp.phases[enemy.phaseIndex].at) {
+          enemy.phaseIndex++;
+          var entered = sp.phases[enemy.phaseIndex - 1];
+          c.log.push(enemy.name + (entered.enrage
+            ? ' срывается в неистовство — Бездна говорит его устами!'
+            : ' меняет облик, и песнь его искажается!'));
         }
-        // dark wave hits BOTH standing heroes instead of one strike;
-        // enraged bosses unleash it more often (every 2nd turn instead of 3rd)
-        var waveEvery = enraged ? 2 : 3;
-        if (sp.wave && enemy.turnCount % waveEvery === 0) {
+        var active = enemy.phaseIndex > 0 ? sp.phases[enemy.phaseIndex - 1] : null;
+        enraged = !!(active && active.enrage);
+        // an active phase overrides the base summon/wave; the opening phase uses the base.
+        summon = (active && active.summon !== undefined) ? active.summon : sp.summon;
+        summonEvery = (active && active.summonEvery !== undefined) ? active.summonEvery : sp.summonEvery;
+        wave = active ? active.wave : sp.wave;
+        waveEvery = (active && active.waveEvery) ? active.waveEvery : (sp.waveEvery || 3);
+      } else {
+        // ---- LEGACY single-phase boss (phaseAt + enrage + summon/wave) ----
+        // a boss with special.phaseAt enters a new phase once its HP fraction drops below it.
+        if (sp && sp.phaseAt && !enemy.phased && (enemy.hp / enemy.maxHp) < sp.phaseAt) {
+          enemy.phased = true;
+          c.log.push(enemy.name + ' входит в ярость!');
+        }
+        enraged = enemy.phased && sp && sp.enrage;
+        if (sp) {
+          summon = sp.summon;
+          summonEvery = sp.summonEvery;
+          if (enraged && summonEvery > 1) summonEvery = summonEvery - 1; // enraged summons one step faster
+          wave = sp.wave;
+          waveEvery = enraged ? 2 : 3; // enraged unleashes the wave more often
+        }
+      }
+
+      // boss summon + wave (shared once the params above are resolved)
+      if (sp) {
+        if (summon && summonEvery && enemy.turnCount % summonEvery === 0) {
+          c.enemies.push(makeEnemy({ type: summon }));
+          c.log.push(enemy.name + ' призывает подмогу из тьмы!');
+        }
+        // dark wave hits BOTH standing heroes instead of one strike
+        if (wave && enemy.turnCount % waveEvery === 0) {
           c.log.push(enemy.name + ' обрушивает тёмную волну!');
           party.heroes.filter(function (h) { return !h.downed; }).forEach(function (h) {
-            var wdmg = dice.roll(sp.wave, rng).total;
+            var wdmg = dice.roll(wave, rng).total;
             if (enraged) wdmg = Math.round(wdmg * 1.5); // +50% while enraged
             state.damageHero(h, wdmg);
             c.log.push(h.def.name + ' захлёстнут волной — ' + wdmg + ' урона.');
