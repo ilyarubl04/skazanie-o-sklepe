@@ -31,6 +31,32 @@
       boss: true, undead: true,
       special: { phaseAt: 0.5, enrage: true },
       desc: 'Огромный страж из костей и камня. Охраняет Светоч на пути силы. Когда здоровье падает ниже половины — впадает в ярость и бьёт сильнее.'
+    },
+    // --- Акт 3 (Гать Сумрачи) ---
+    // ПРИМЕЧАНИЕ по движку: combat.js читает special ТОЛЬКО у боссов (var sp = enemy.boss ? ...).
+    // У рядового призрака AoE-волна (wave) движком игнорировалась бы, поэтому wraith — это
+    // сильный одиночный атакующий (bonus 4 / d6+1, с приличным HP). Полноценную тёмную волну
+    // получит босс-Пастырь в Акте 5 (там она реально отработает как special.wave). 'fearStrike'
+    // ниже — декоративный тег для лора/будущего UI, движок его не использует, бой не ломает.
+    wraith: {
+      id: 'wraith', name: 'Призрак-плакальщик', art: 'assets/enemies/wraith.png',
+      maxHp: 16, defense: 13, attack: { bonus: 4, damage: 'd6+1' },
+      undead: true, fearStrike: true,
+      desc: 'Бесплотный плакальщик болот. Воет так, что стынет кровь, и бьёт холодом могилы. Слаб к Свету и Изгнанию нежити.'
+    },
+    cultist: {
+      id: 'cultist', name: 'Послушник Пастыря', art: 'assets/enemies/cultist.png',
+      maxHp: 15, defense: 12, attack: { bonus: 4, damage: 'd6+1' },
+      undead: false,
+      desc: 'Живой фанатик Ордена Безмолвия. Идёт к Сердцу-Колоколу с тихой молитвой на устах. ЖИВОЙ — Изгнание нежити на него не действует.'
+    },
+    bog_hag: {
+      id: 'bog_hag', name: 'Болотная Ведьма-вестница', art: 'assets/enemies/bog_hag.png',
+      maxHp: 50, defense: 13, attack: { bonus: 4, damage: 'd8+1' },
+      boss: true, undead: false,
+      special: { summon: 'drowned', summonEvery: 2 },
+      drops: 'tuningFork1',
+      desc: 'Вестница Пастыря на гати к монастырю. Поднимает из трясины утопленников и насылает гнильную порчу. Стережёт первый камертон.'
     }
   };
 
