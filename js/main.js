@@ -50,6 +50,24 @@
   function sceneBg(id) {
     var base = 'assets/scenes/';
     id = id || '';
+    // --- Acts 3-5 locations (check the specific prefixes BEFORE the generic
+    //     tavern/forest/crypt rules below, so collisions resolve correctly) ---
+    if (id.indexOf('crossroads') === 0 || id.indexOf('camp_act3') === 0) return base + 'road.jpg';   // Перепутье / привал
+    if (id.indexOf('bog') === 0 || id.indexOf('top') === 0) return base + 'swamp.jpg';               // Топь
+    if (id.indexOf('whisper') === 0 || id === 'wraith_fight') return base + 'forest.jpg';             // Шёпот-лес
+    if (id.indexOf('outpost') === 0) return base + 'camp.jpg';                                        // Застава
+    if (id.indexOf('gat') === 0 || id === 'fork1_taken') return base + 'swamp.jpg';                   // Гать
+    if (id.indexOf('monastery') === 0 || id.indexOf('scriptorium') === 0 ||
+        id.indexOf('belltower') === 0 || id.indexOf('bell_warden') === 0 ||
+        id.indexOf('yard') === 0) return base + 'monastery.jpg';                                      // Монастырь / Скрипторий / Колокольня
+    if (id.indexOf('order_crypt') === 0 || id.indexOf('crypt_yoren') === 0) return base + 'crypt.jpg'; // Крипта Ордена
+    if (id.indexOf('flooded') === 0 || id.indexOf('church') === 0) return base + 'flooded.jpg';       // Затопленная церковь
+    if (id.indexOf('abyss') === 0 || id.indexOf('choir') === 0 ||
+        id.indexOf('serdce') === 0 || id.indexOf('maya') === 0 ||
+        id === 'finale_resolve') return base + 'abyss.jpg';                                           // Сердце Бездны
+    if (id === 'chapter2_end') return base + 'swamp.jpg';   // cliffhanger over the Топь
+    if (id === 'chapter3_end') return base + 'abyss.jpg';   // на пороге Бездны
+    // --- Acts 1-2 (original) ---
     if (id.indexOf('tavern') === 0) return base + 'tavern.jpg';
     if (id.indexOf('forest') === 0) return base + 'forest.jpg';
     if (id.indexOf('chapel') === 0) return base + 'chapel.jpg';
