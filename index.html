@@ -79,12 +79,25 @@
 
   <!-- combat -->
   <div class="screen" id="screen-combat">
-    <div id="combat-enemies"></div>
+    <!-- BATTLEFIELD: heroes (left) face enemies (right) across a middle gutter.
+         On narrow/portrait screens the columns stack: enemies on top, heroes below.
+         #combat-enemies and #combat-heroes keep their ids + data-uid/data-idx hooks
+         so the combat juice (struck/flashHit/floatNumber) still lands on the right card. -->
+    <div id="battlefield">
+      <div class="bf-side bf-foes">
+        <div class="bf-label bf-label-foes">Враги</div>
+        <div id="combat-enemies"></div>
+      </div>
+      <div class="bf-gutter"><span class="bf-vs">⚔</span></div>
+      <div class="bf-side bf-allies">
+        <div class="bf-label bf-label-allies">Отряд</div>
+        <!-- compact battle hero cards reflect live HP and highlight the active player -->
+        <div class="party-rail" id="combat-heroes"></div>
+      </div>
+    </div>
     <div id="combat-actions"></div>
     <div class="panel" id="combat-log" style="max-height:160px;overflow:auto;"></div>
     <div id="dice-tray-combat"></div>
-    <!-- expanded hero cards reflect live HP and highlight the active player -->
-    <div class="party-rail" id="combat-heroes"></div>
   </div>
 
   <!-- world map (2.5D overworld) -->
