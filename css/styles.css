@@ -282,6 +282,24 @@ h2,h3{font-family:'Forum', Georgia, serif;color:var(--gold);}
 .card-backdrop .card-close{margin-top:12px;}
 @keyframes fadein{from{opacity:0;}to{opacity:1;}}
 
+/* ===== "who attempts the check" hero-choice buttons ===== */
+.check-prompt{margin:0 0 8px;text-align:center;font-family:'Forum',Georgia,serif;
+  color:var(--gold);letter-spacing:.04em;}
+.who-btn{position:relative;}
+.who-btn.suited{border-color:#ffe2a0;box-shadow:0 0 0 1px rgba(255,226,160,.4),0 6px 16px rgba(212,168,83,.25);}
+.who-btn .who-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px;}
+.who-btn .who-player{font-size:.72em;opacity:.75;font-family:'Forum',Georgia,serif;letter-spacing:.05em;}
+.who-btn .who-meta{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  margin-top:.28em;font-family:'Lora',Georgia,serif;font-style:italic;font-size:.82em;
+  color:var(--parchment);opacity:.92;}
+.who-btn .dots{letter-spacing:2px;font-style:normal;color:var(--gold);}
+.who-btn .dots .off{color:rgba(212,168,83,.25);}
+.who-btn .who-edge{display:block;margin-top:.25em;font-size:.76em;font-style:italic;
+  color:#7fc99b;font-family:'Lora',Georgia,serif;}
+.who-suited-tag{display:inline-block;margin-left:6px;font-size:.62em;letter-spacing:.06em;
+  color:#161008;background:var(--gold);border-radius:4px;padding:1px 6px;vertical-align:middle;
+  font-family:'Forum',Georgia,serif;}
+
 /* in #hero-detail the gold mini-bars sit on the parchment, so darken their track for contrast */
 #hero-detail .statbar{background:rgba(42,28,12,.5);border-color:rgba(120,80,30,.5);}
 #hero-detail .stat-name{color:var(--ink);}

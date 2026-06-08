@@ -319,56 +319,120 @@
     return v <= 8 ? 'Легко' : v <= 11 ? 'Средне' : v <= 14 ? 'Сложно' : 'Очень сложно';
   }
 
+  // Player 1 owns heroes[0], Player 2 owns heroes[1]. "Игрок 1 — Бранд"
+  function playerLabel(idx) {
+    var h = party.heroes[idx];
+    return 'Игрок ' + (idx + 1) + (h ? ' — ' + h.def.name : '');
+  }
+
+  // five dots showing a hero's stat (filled vs empty), as a tiny visual gauge
+  function statDotsHTML(value) {
+    var s = '';
+    for (var i = 1; i <= 5; i++) s += (i <= value) ? '●' : '<span class="off">●</span>';
+    return '<span class="dots">' + s + '</span>';
+  }
+
+  // does this hero have the ability the check rewards? matched by id OR effect tag
+  function heroHasAbility(def, tag) {
+    if (!tag) return false;
+    return def.abilities.some(function (a) { return a.id === tag || a.effect === tag; });
+  }
+  // a short success flavor line when the matching ability gives an edge
+  var ABILITY_EDGE = {
+    lockpick: 'нутром чувствует механизм…',
+    persuade: 'находит верное слово…',
+    tracking: 'читает скрытые тропы…',
+    light: 'разгоняет тьму…'
+  };
+
+  // ---------- skill check: the player chooses WHO attempts it ----------
   function renderCheck(scene) {
     var actions = document.getElementById('scene-actions'); actions.innerHTML = '';
     var ch = scene.check;
-    var statName = { str: 'Силу', dex: 'Ловкость', int: 'Ум', cha: 'Харизму' }[ch.stat];
-    var b = document.createElement('button'); b.className = 'choice';
-    b.textContent = (ch.label || 'Проверка') + ' — бросок на ' + statName;
-    b.onclick = function () {
-      audio.sfx.click();
-      b.disabled = true;
-      // use the hero with the higher stat of the two for fairness
-      var best = party.heroes.reduce(function (a, h) { return h.def.stats[ch.stat] > a.def.stats[ch.stat] ? h : a; });
-      var bonus = D.rules.statBonus(best.def.stats[ch.stat]);
-      var diff = D.rules.DIFFICULTY[ch.difficulty];
-      var word = diffWord(ch);
-      var prompt = 'Бросок на ' + statName + (word ? ' · ' + word + ' (против ' + diff + ')' : '');
-      D.diceThrow.roll({ prompt: prompt, onSettle: function (face) {
-        var total = face + bonus;
-        var crit = face === 20, critFail = face === 1;
-        var mathSuccess = total >= diff;
-        // nat 20 always succeeds, nat 1 always fails — they override the maths
-        var success = crit ? true : (critFail ? false : mathSuccess);
-        // near-miss: failed but within 2 below difficulty and not a natural 1
-        var partial = !success && !critFail && total >= diff - 2;
-        var res = {
-          d20: face, bonus: bonus, total: total, difficulty: diff, diffWord: word,
-          success: success, partial: partial, crit: crit, critFail: critFail
-        };
-        showDiceResult(document.getElementById('dice-tray'), res, function () {
-          if (crit) {
-            // critical boon: a small heal for the whole party, plus a flag the scene/UI can react to
-            state.setFlag(party, 'critBoon', true);
-            party.heroes.forEach(function (h) { if (state.healHero) state.healHero(h, 2); });
-          }
-          if (success) {
-            if (ch.onSuccessSet) state.setFlag(party, ch.onSuccessSet, true);
-            enterScene(ch.onSuccess);
-          } else if (partial) {
-            // fail-forward: route to success but mark a complication flag
-            if (ch.onSuccessSet) state.setFlag(party, ch.onSuccessSet, true);
-            state.setFlag(party, 'partial_' + (ch.onSuccessSet || scene.id), true);
-            enterScene(ch.onSuccess);
-          } else {
-            // nat 1 also stamps the failure consequence even if maths would have passed
-            if (ch.onFailSet) state.setFlag(party, ch.onFailSet, true);
-            enterScene(ch.onFail);
-          }
-        });
-      } });
-    };
-    actions.appendChild(b);
+    var statNameAcc = { str: 'Силу', dex: 'Ловкость', int: 'Ум', cha: 'Харизму' }[ch.stat];
+    var word = diffWord(ch);
+
+    // which of the two is better suited (higher stat) — highlighted, not forced
+    var bestIdx = 0;
+    party.heroes.forEach(function (h, i) {
+      if (h.def.stats[ch.stat] > party.heroes[bestIdx].def.stats[ch.stat]) bestIdx = i;
+    });
+
+    var prompt = document.createElement('div'); prompt.className = 'check-prompt';
+    prompt.textContent = (ch.label || 'Проверка') + ' — кто попробует?';
+    actions.appendChild(prompt);
+
+    party.heroes.forEach(function (hero, idx) {
+      var def = hero.def;
+      var hasEdge = heroHasAbility(def, ch.ability);
+      var b = document.createElement('button');
+      b.className = 'choice who-btn' + (idx === bestIdx ? ' suited' : '');
+      var suitedTag = (idx === bestIdx) ? '<span class="who-suited-tag">подходит</span>' : '';
+      var edgeLine = hasEdge
+        ? '<span class="who-edge">' + def.name + ' ' + (ABILITY_EDGE[ch.ability] || 'знает это дело…') + '</span>'
+        : '';
+      b.innerHTML =
+        '<span class="who-top"><span class="choice-label">' + def.name + suitedTag + '</span>' +
+        '<span class="who-player">' + playerLabel(idx).split(' — ')[0] + '</span></span>' +
+        '<span class="who-meta"><span>' + statNameAcc + ' ' + statDotsHTML(def.stats[ch.stat]) + '</span>' +
+        '<span>' + (word || '') + '</span></span>' + edgeLine;
+      b.onclick = function () {
+        audio.sfx.click();
+        // lock the whole prompt so a check resolves with exactly one hero
+        var btns = actions.querySelectorAll('button');
+        for (var i = 0; i < btns.length; i++) btns[i].disabled = true;
+        attemptCheck(scene, idx, hasEdge);
+      };
+      actions.appendChild(b);
+    });
+  }
+
+  // resolve the check for the chosen hero (keeps crit / partial / flag logic intact)
+  function attemptCheck(scene, heroIdx, hasEdge) {
+    var ch = scene.check;
+    var statNameAcc = { str: 'Силу', dex: 'Ловкость', int: 'Ум', cha: 'Харизму' }[ch.stat];
+    var hero = party.heroes[heroIdx];
+    var extra = hasEdge ? 3 : 0;                       // ability edge: +3 to the roll
+    var bonus = D.rules.statBonus(hero.def.stats[ch.stat]) + extra;
+    var diff = D.rules.DIFFICULTY[ch.difficulty];
+    var word = diffWord(ch);
+    // name the throwing player on the dice overlay
+    var prompt = playerLabel(heroIdx) + ' — бросок на ' + statNameAcc +
+      (word ? ' · ' + word + ' (против ' + diff + ')' : '');
+    D.diceThrow.roll({ prompt: prompt, onSettle: function (face) {
+      var total = face + bonus;
+      var crit = face === 20, critFail = face === 1;
+      var mathSuccess = total >= diff;
+      // nat 20 always succeeds, nat 1 always fails — they override the maths
+      var success = crit ? true : (critFail ? false : mathSuccess);
+      // near-miss: failed but within 2 below difficulty and not a natural 1
+      var partial = !success && !critFail && total >= diff - 2;
+      var res = {
+        d20: face, bonus: bonus, total: total, difficulty: diff, diffWord: word,
+        success: success, partial: partial, crit: crit, critFail: critFail,
+        edge: (hasEdge && success) ? (hero.def.name + ' ' + (ABILITY_EDGE[ch.ability] || 'справился мастерски!')) : null
+      };
+      showDiceResult(document.getElementById('dice-tray'), res, function () {
+        if (crit) {
+          // critical boon: a small heal for the whole party, plus a flag the scene/UI can react to
+          state.setFlag(party, 'critBoon', true);
+          party.heroes.forEach(function (h) { if (state.healHero) state.healHero(h, 2); });
+        }
+        if (success) {
+          if (ch.onSuccessSet) state.setFlag(party, ch.onSuccessSet, true);
+          enterScene(ch.onSuccess);
+        } else if (partial) {
+          // fail-forward: route to success but mark a complication flag
+          if (ch.onSuccessSet) state.setFlag(party, ch.onSuccessSet, true);
+          state.setFlag(party, 'partial_' + (ch.onSuccessSet || scene.id), true);
+          enterScene(ch.onSuccess);
+        } else {
+          // nat 1 also stamps the failure consequence even if maths would have passed
+          if (ch.onFailSet) state.setFlag(party, ch.onFailSet, true);
+          enterScene(ch.onFail);
+        }
+      });
+    } });
   }
 
   function showDiceResult(tray, res, done) {
@@ -378,11 +442,12 @@
                 : res.partial ? '<span style="color:#c08a2e">Успех ценой…</span>'
                 : '<span style="color:#8b0000">Провал</span>';
     var diffLabel = res.diffWord ? res.diffWord + ' · против ' + res.difficulty : 'против ' + res.difficulty;
+    var edge = res.edge ? '<br><span style="color:#7fc99b;font-style:italic">' + res.edge + '</span>' : '';
     tray.innerHTML = '<div class="panel" style="text-align:center;font-family:\'Forum, Georgia, serif\'">' +
       '🎲 ' + res.d20 + ' + ' + res.bonus + ' = <b>' + res.total + '</b> ' + diffLabel +
       '<br>' + verdict +
-      flourish + '</div>';
-    setTimeout(function () { tray.innerHTML = ''; done(); }, 1600);
+      flourish + edge + '</div>';
+    setTimeout(function () { tray.innerHTML = ''; done(); }, res.edge ? 2000 : 1600);
   }
 
   // ---------- combat juice helpers (presentation only) ----------
