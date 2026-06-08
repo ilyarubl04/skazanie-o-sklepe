@@ -56,7 +56,7 @@
     var enemy = findEnemy(c, targetUid);
     if (!validTarget(enemy)) return { hit: false, invalid: true };
     var atk = hero.def.attack;
-    var bonus = atk.bonus + statusAtkBonus(hero);
+    var bonus = atk.bonus + statusAtkBonus(hero) + statusRollBonus(hero);
     var toHit;
     if (typeof fixedD20 === 'number') {
       // a player-thrown d20 supplies the to-hit die; bonus is applied here
@@ -132,7 +132,8 @@
       case 'buff_attack_party': party.heroes.forEach(function (h) { h.statuses.push({ type: 'atk', value: 2, turns: 2 }); }); break;
       case 'buff_defense': { var tgt = party.heroes.filter(function (h){return h.id===targetUid;})[0]||hero; tgt.statuses.push({ type: 'def', value: 4, turns: 2 }); break; }
       case 'buff_rolls': { var tg = party.heroes.filter(function (h){return h.id===targetUid;})[0]||hero; tg.statuses.push({ type: 'roll', value: (abilityId==='inspire'?3:2), turns: 3 }); break; }
-      case 'summon_ally': c.allySummon = { turns: 2 }; break;
+      case 'summon_ally': c.ally = { turns: 2 }; c.log.push(hero.def.name + ' призывает зверя-помощника!'); break;
+      case 'guard_ally': hero.statuses.push({ type: 'guard' }); c.log.push(hero.def.name + ' встаёт на защиту союзников.'); break;
       default: break; // utility handled outside combat
     }
     combat.combatStatus(party);
@@ -141,6 +142,9 @@
 
   function statusAtkBonus(hero) {
     var b = 0; hero.statuses.forEach(function (s) { if (s.type === 'atk') b += s.value; }); return b;
+  }
+  function statusRollBonus(hero) {
+    var b = 0; hero.statuses.forEach(function (s) { if (s.type === 'roll') b += s.value; }); return b;
   }
   function consumeDouble(hero) {
     for (var i = 0; i < hero.statuses.length; i++) {
@@ -152,8 +156,42 @@
     var d = hero.def.defense; hero.statuses.forEach(function (s) { if (s.type === 'def') d += s.value; }); return d;
   }
 
+  function findGuardian(party) {
+    var hs = party.heroes;
+    for (var i = 0; i < hs.length; i++) {
+      if (!hs[i].downed && hs[i].statuses.some(function (s) { return s.type === 'guard'; })) return hs[i];
+    }
+    return null;
+  }
+  function consumeGuard(hero) {
+    for (var i = 0; i < hero.statuses.length; i++) {
+      if (hero.statuses[i].type === 'guard') { hero.statuses.splice(i, 1); return true; }
+    }
+    return false;
+  }
+
+  // summoned beast strikes a random alive enemy for d6+2; ticks its own life down
+  combat.allyAct = function (party, rng) {
+    var c = party.combat;
+    if (!c || !c.ally || c.ally.turns <= 0) return;
+    var alive = aliveEnemies(c);
+    if (alive.length > 0) {
+      var idx = Math.floor((rng || Math.random)() * alive.length);
+      var target = alive[idx >= alive.length ? alive.length - 1 : idx];
+      var dmg = dice.roll('d6+2', rng).total;
+      applyDamageToEnemy(c, target, dmg, c.log);
+      c.log.push('Зверь-помощник бьёт ' + target.name + ' на ' + dmg + ' урона.');
+    }
+    c.ally.turns--;
+    if (c.ally.turns <= 0) { c.ally = null; c.log.push('Зверь-помощник растворяется.'); }
+    combat.combatStatus(party);
+  };
+
   combat.enemiesTurn = function (party, rng) {
     var c = party.combat;
+    if (combat.combatStatus(party) !== 'ongoing') return;
+    // summoned beast acts first
+    combat.allyAct(party, rng);
     if (combat.combatStatus(party) !== 'ongoing') return;
     aliveEnemies(c).forEach(function (enemy) {
       enemy.turnCount++;
@@ -172,8 +210,16 @@
       var toHit = dice.rollD20(enemy.def.attack.bonus - (enemy.atkPenalty || 0), rng);
       if (toHit.total >= heroDefense(target)) {
         var dmg = dice.roll(enemy.def.attack.damage, rng).total;
-        state.damageHero(target, dmg);
-        c.log.push(enemy.name + ' бьёт ' + target.def.name + ' на ' + dmg + ' урона.');
+        // a guardian redirects the blow onto themself when a non-guardian is hit
+        var guardian = findGuardian(party);
+        if (guardian && guardian !== target) {
+          consumeGuard(guardian);
+          state.damageHero(guardian, dmg);
+          c.log.push(guardian.def.name + ' принимает удар вместо ' + target.def.name + ' — ' + dmg + ' урона.');
+        } else {
+          state.damageHero(target, dmg);
+          c.log.push(enemy.name + ' бьёт ' + target.def.name + ' на ' + dmg + ' урона.');
+        }
       } else {
         c.log.push(target.def.name + ' уклоняется от ' + enemy.name + '.');
       }

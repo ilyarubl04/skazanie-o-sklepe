@@ -125,3 +125,49 @@ test('heroAbility with unknown id returns invalid and does not throw', function 
   var res = combat.heroAbility(p, 0, 'no_such_ability', p.combat.enemies[0].uid, maxRng());
   assertEqual(res.invalid, true);
 });
+
+// ---- buff_rolls (bless/inspire) actually boosts to-hit ----
+test('bless adds its value to the blessed hero to-hit and lands a borderline hit', function () {
+  // brand bonus 5; skeleton defense — pick a fixedD20 that misses without bless but hits with +2.
+  var p = state.createParty(['mira', 'brand']);
+  combat.startCombat(p, [{ type: 'skeleton' }]);
+  var def = p.combat.enemies[0].defense;
+  // choose face so that face+5 < def but face+5+2 >= def
+  var face = def - 5 - 1; // misses by 1 without bless
+  var uid = p.combat.enemies[0].uid;
+  // without bless: miss
+  var miss = combat.heroAttack(p, 1, uid, minRng(), face);
+  assertEqual(miss.hit, false);
+  // now bless brand (+2) then attack with same face: should hit
+  combat.heroAbility(p, 0, 'bless', p.heroes[1].id, maxRng());
+  var hit = combat.heroAttack(p, 1, uid, minRng(), face);
+  assertEqual(hit.hit, true);
+});
+
+// ---- summon_ally (animal_call): the beast strikes enemies ----
+test('animal_call summons a beast that damages an enemy and expires after 2 rounds', function () {
+  var p = state.createParty(['thea', 'brand']);
+  combat.startCombat(p, [{ type: 'skeleton' }]);
+  combat.heroAbility(p, 0, 'animal_call', null, maxRng());
+  assert(p.combat.ally && p.combat.ally.turns === 2, 'ally summoned with 2 turns');
+  var before = p.combat.enemies[0].hp;
+  combat.enemiesTurn(p, maxRng());
+  assert(p.combat.enemies[0].hp < before, 'beast damaged the enemy');
+  assertEqual(p.combat.ally.turns, 1, 'ally turns decremented');
+  combat.enemiesTurn(p, maxRng());
+  assert(!p.combat.ally, 'ally gone after 2 rounds');
+});
+
+// ---- guard_ally (Brand's guard): redirects a hit to the guardian ----
+test('guard redirects an enemy hit from the ally to Brand, then is consumed', function () {
+  var p = state.createParty(['brand', 'lira']);
+  combat.startCombat(p, [{ type: 'skeleton' }]);
+  combat.heroAbility(p, 0, 'guard', null, maxRng());
+  var brandHpBefore = p.heroes[0].hp;
+  var liraHpBefore = p.heroes[1].hp;
+  combat.enemiesTurn(p, maxRng()); // maxRng => enemy hits
+  assert(p.heroes[1].hp === liraHpBefore, 'ally (Lira) unharmed — hit redirected');
+  assert(p.heroes[0].hp < brandHpBefore, 'guardian (Brand) took the damage');
+  var stillGuarding = p.heroes[0].statuses.some(function (s) { return s.type === 'guard'; });
+  assertEqual(stillGuarding, false, 'guard consumed');
+});
