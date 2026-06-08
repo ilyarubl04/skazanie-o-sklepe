@@ -27,8 +27,9 @@ var ROOT = path.join(__dirname, '..');
 var ADV = require(path.join(ROOT, 'js', 'adventure.js'));
 var OUT_DIR = path.join(ROOT, 'assets', 'audio', 'vo');
 
-var MODEL = process.env.VO_MODEL || 'openai/gpt-4o-mini-tts';
-var VOICE = process.env.VO_VOICE || 'onyx';        // deep narrator
+// Gemini TTS returns raw PCM (24kHz/16-bit/mono); we convert to mp3 with ffmpeg.
+var MODEL = process.env.VO_MODEL || 'google/gemini-3.1-flash-tts-preview';
+var VOICE = process.env.VO_VOICE || 'Charon';      // deep narrator voice
 var FORCE = !!process.env.VO_FORCE;
 
 function readKey() {
@@ -49,25 +50,37 @@ fs.writeFileSync(confPath, 'header = "Authorization: Bearer ' + KEY + '"\nheader
 process.on('exit', function () { try { fs.unlinkSync(confPath); } catch (e) {} });
 
 function synth(model, voice, text, outFile) {
+  // Gemini TTS only supports response_format=pcm; convert pcm -> mp3 with ffmpeg.
+  var needsPcm = /gemini/i.test(model) || process.env.VO_PCM === '1';
+  var fmt = needsPcm ? 'pcm' : 'mp3';
+  var rawFile = needsPcm ? outFile.replace(/\.mp3$/, '.pcm') : outFile;
+
   var payloadPath = path.join(os.tmpdir(), 'vo_payload_' + process.pid + '.json');
-  fs.writeFileSync(payloadPath, JSON.stringify({ model: model, input: text, voice: voice, response_format: 'mp3' }));
+  fs.writeFileSync(payloadPath, JSON.stringify({ model: model, input: text, voice: voice, response_format: fmt }));
   try {
     cp.execFileSync('curl', [
       '-sS', '-X', 'POST', 'https://openrouter.ai/api/v1/audio/speech',
-      '-K', confPath, '--data', '@' + payloadPath, '--output', outFile
+      '-K', confPath, '--data', '@' + payloadPath, '--output', rawFile
     ], { stdio: ['ignore', 'ignore', 'inherit'] });
   } finally {
     try { fs.unlinkSync(payloadPath); } catch (e) {}
   }
-  var size = fs.existsSync(outFile) ? fs.statSync(outFile).size : 0;
-  if (size < 1200) {
-    // most likely a JSON error body rather than audio
+
+  var rawSize = fs.existsSync(rawFile) ? fs.statSync(rawFile).size : 0;
+  if (rawSize < 1200) {
     var body = '';
-    try { body = fs.readFileSync(outFile, 'utf8').slice(0, 300); } catch (e) {}
-    try { fs.unlinkSync(outFile); } catch (e) {}
-    throw new Error('ответ слишком мал (' + size + 'б): ' + body);
+    try { body = fs.readFileSync(rawFile, 'utf8').slice(0, 300); } catch (e) {}
+    try { fs.unlinkSync(rawFile); } catch (e) {}
+    throw new Error('ответ слишком мал (' + rawSize + 'б): ' + body);
   }
-  return size;
+
+  if (needsPcm) {
+    // raw PCM: 24kHz, 16-bit signed LE, mono
+    cp.execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y',
+      '-f', 's16le', '-ar', '24000', '-ac', '1', '-i', rawFile, outFile]);
+    try { fs.unlinkSync(rawFile); } catch (e) {}
+  }
+  return fs.existsSync(outFile) ? fs.statSync(outFile).size : 0;
 }
 
 function sceneText(s) {
