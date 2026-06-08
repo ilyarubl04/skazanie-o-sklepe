@@ -69,7 +69,13 @@ h2,h3{font-family:'Forum', Georgia, serif;color:var(--gold);}
   background:linear-gradient(180deg,#3a2412,#241307);border:2px solid var(--gold);border-radius:6px;
   transition:transform .12s ease, box-shadow .12s ease;}
 .choice:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(212,168,83,.35);}
+.choice:active{transform:translateY(1px) scale(.99);box-shadow:0 2px 6px rgba(0,0,0,.5) inset;
+  filter:brightness(.92);}
 .choice:disabled{opacity:.4;cursor:not-allowed;}
+/* ability button: bold label line + small description subtitle */
+.choice-label{display:block;font-weight:700;}
+.choice-sub{display:block;margin-top:.18em;font-family:'Lora',Georgia,serif;font-style:italic;
+  font-size:.8em;line-height:1.3;color:var(--parchment);opacity:.78;}
 
 /* HP bar */
 .hpbar{height:14px;background:#2a1c0c;border:1px solid var(--gold);border-radius:7px;overflow:hidden;}
@@ -82,16 +88,28 @@ h2,h3{font-family:'Forum', Georgia, serif;color:var(--gold);}
   box-shadow:inset 0 0 24px rgba(0,0,0,.7);}
 
 /* ===== combat juice: screen shake, hit flash, floating numbers ===== */
+/* amplitude driven by a CSS variable so one keyframe scales across tiers */
 @keyframes shake{
   0%,100%{transform:translate(0,0);}
-  15%{transform:translate(-5px,2px);}
-  30%{transform:translate(4px,-3px);}
-  45%{transform:translate(-4px,3px);}
-  60%{transform:translate(5px,1px);}
-  75%{transform:translate(-3px,-2px);}
-  90%{transform:translate(2px,2px);}
+  15%{transform:translate(calc(var(--sa,5px) * -1),2px);}
+  30%{transform:translate(var(--sa,5px),-3px);}
+  45%{transform:translate(calc(var(--sa,5px) * -1),3px);}
+  60%{transform:translate(var(--sa,5px),1px);}
+  75%{transform:translate(calc(var(--sa,5px) * -.7),-2px);}
+  90%{transform:translate(calc(var(--sa,5px) * .5),2px);}
 }
-.shaking{animation:shake .3s ease-in-out;}
+/* shake the full-bleed body; tiers scale amplitude + duration */
+.shaking-1{--sa:3px;animation:shake .24s ease-in-out;}
+.shaking-2{--sa:6px;animation:shake .32s ease-in-out;}
+.shaking-3{--sa:10px;animation:shake .42s cubic-bezier(.36,.07,.19,.97);}
+
+/* a struck enemy portrait whitens + punches in scale, then settles */
+@keyframes enemyhit{
+  0%{filter:sepia(.25) contrast(1.05) brightness(1);transform:scale(1);}
+  18%{filter:brightness(2.4) saturate(.2) contrast(1.1);transform:scale(1.12);}
+  100%{filter:sepia(.25) contrast(1.05) brightness(1);transform:scale(1);}
+}
+.enemy-art.struck{animation:enemyhit .26s ease-out;}
 
 @keyframes flashhit{
   0%{box-shadow:0 0 0 0 rgba(180,0,0,0);}
@@ -109,6 +127,19 @@ h2,h3{font-family:'Forum', Georgia, serif;color:var(--gold);}
   font-family:'Forum', Georgia, serif;font-weight:700;font-size:26px;
   text-shadow:0 2px 4px rgba(0,0,0,.85), 0 0 6px rgba(0,0,0,.6);
   animation:floatup .9s ease-out forwards;}
+/* bigger/bolder for heavy hits */
+.float-num.float-big{font-size:34px;font-weight:900;
+  animation:floatup 1.1s ease-out forwards;}
+/* crits: gold, largest, with a glow */
+.float-num.float-crit{font-size:42px;font-weight:900;letter-spacing:.01em;
+  text-shadow:0 2px 4px rgba(0,0,0,.9),0 0 14px rgba(255,220,120,.9),0 0 26px rgba(255,180,40,.7);
+  animation:floatcrit 1.1s ease-out forwards;}
+@keyframes floatcrit{
+  0%{transform:translate(-50%,0) scale(.6);opacity:0;}
+  12%{transform:translate(-50%,-8px) scale(1.35);opacity:1;}
+  28%{transform:translate(-50%,-14px) scale(1.05);opacity:1;}
+  100%{transform:translate(-50%,-56px) scale(1);opacity:0;}
+}
 
 /* ability icon button */
 .ability{width:54px;height:54px;border-radius:8px;border:2px solid var(--gold);background:#241307;cursor:pointer;}
