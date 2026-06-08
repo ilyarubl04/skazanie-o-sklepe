@@ -72,7 +72,7 @@
       ax: 0.5, ay: 0.7, az: 0.2, avx: 0, avy: 0, avz: 0,
       moving: false, settled: false
     };
-    var slowFrames = 0, lastKnock = 0, rafId = null, finished = false, awaitingContinue = false;
+    var slowFrames = 0, frames = 0, lastKnock = 0, rafId = null, finished = false, awaitingContinue = false;
 
     var dragging = false, samples = [], pressedOnDie = false;
     function localPoint(ev) { var r = canvas.getBoundingClientRect(); return { x: ev.clientX - r.left, y: ev.clientY - r.top }; }
@@ -142,25 +142,34 @@
 
     function step() {
       if (die.moving) {
+        frames++;
         die.x += die.vx;
         die.z += die.vz; die.vz -= GRAV;
         die.ax += die.avx; die.ay += die.avy; die.az += die.avz;
-        die.avx *= ANG_FRICTION; die.avy *= ANG_FRICTION; die.avz *= ANG_FRICTION;
-        die.vx *= AIR;
 
-        // board floor — bounce + clatter
-        if (die.z <= 0 && die.vz < 0) {
-          die.z = 0; die.vz = -die.vz * REST;
-          die.vx *= ROLL; die.avx *= 0.7; die.avy *= 0.7; die.avz *= 0.7;
-          if (die.vz > 0.8) knock(Math.min(1, 0.35 + die.vz * 0.06));
+        if (die.z <= 0) {
+          die.z = 0;
+          if (die.vz < 0) {
+            die.vz = -die.vz * REST;                 // bounce off the board
+            if (die.vz > 0.8) knock(Math.min(1, 0.35 + die.vz * 0.06));
+            if (die.vz < 2.2) die.vz = 0;            // kill the infinite micro-bounce
+          }
+          // resting on the board: strong rolling friction + spin damping
+          die.vx *= 0.9;
+          die.avx *= ROLL; die.avy *= ROLL; die.avz *= ROLL;
+        } else {
+          die.vx *= AIR;
+          die.avx *= ANG_FRICTION; die.avy *= ANG_FRICTION; die.avz *= ANG_FRICTION;
         }
+
         // side rails
         if (die.x < DIE_R) { die.x = DIE_R; die.vx = -die.vx * 0.55; knock(0.4); }
         else if (die.x > W - DIE_R) { die.x = W - DIE_R; die.vx = -die.vx * 0.55; knock(0.4); }
 
         var angSpeed = Math.abs(die.avx) + Math.abs(die.avy) + Math.abs(die.avz);
-        var rested = die.z < 0.6 && Math.abs(die.vz) < 1.4 && Math.abs(die.vx) < 0.5 && angSpeed < 0.04;
-        if (rested) { slowFrames++; if (slowFrames >= 8) settle(); } else slowFrames = 0;
+        var rested = die.z === 0 && die.vz === 0 && Math.abs(die.vx) < 0.4 && angSpeed < 0.06;
+        if (rested) { slowFrames++; if (slowFrames >= 6) settle(); } else slowFrames = 0;
+        if (frames > 300 && !die.settled) settle();  // failsafe: the die always lands (~5s)
       }
       draw();
       if (!finished) rafId = window.requestAnimationFrame(step);

@@ -218,26 +218,45 @@
       grid.appendChild(card);
     });
   }
+  function closeHeroModal() {
+    var b = document.getElementById('hero-modal-back');
+    if (b && b.parentNode) b.parentNode.removeChild(b);
+  }
+  // clicking a hero opens a modal immediately (no scrolling down to a panel)
   function showHeroDetail(h) {
-    var d = document.getElementById('hero-detail');
+    closeHeroModal();
+    audio.sfx.click();
     var stats = STAT_ORDER.map(function (k) {
       var pct = Math.round((h.stats[k] / 5) * 100);
       return '<div class="statrow"><span class="stat-name">' + STAT_LABELS[k] + '</span>' +
         '<span class="statbar"><i style="width:' + pct + '%"></i></span></div>';
     }).join('');
-    d.innerHTML = '<h3>' + h.name + ' — ' + h.role + '</h3><p class="flavor">' + h.story + '</p>' +
+    var back = document.createElement('div'); back.className = 'card-backdrop'; back.id = 'hero-modal-back';
+    var box = document.createElement('div'); box.className = 'herocard expanded-overlay';
+    box.innerHTML =
+      '<div class="herocard-head" style="margin-bottom:10px;">' +
+        '<img class="herocard-portrait" src="' + h.portrait + '" alt="" id="hero-modal-portrait">' +
+        '<div><p class="hero-name" style="font-size:1.7rem;">' + h.name + '</p><p class="hero-role">' + h.role + '</p></div>' +
+      '</div>' +
+      '<p class="flavor" style="font-size:1rem;line-height:1.6;margin:.2em 0 .8em;">' + h.story + '</p>' +
       '<div class="statgrid">' + stats + '</div>' +
-      '<p style="font-family:\'Forum\',Georgia,serif;letter-spacing:.05em;">❤ ' + h.maxHp + ' · 🛡 ' + h.defense + '</p>' +
-      '<div class="hero-section-label">Может</div>' +
-      '<ul class="ability-list">' + h.abilities.map(function (a) { return '<li><b>' + a.name + '</b> — ' + a.desc + '</li>'; }).join('') + '</ul>' +
+      '<p style="font-family:\'Forum\',Georgia,serif;letter-spacing:.05em;color:var(--parchment);">❤ ' + h.maxHp + ' · 🛡 ' + h.defense + '</p>' +
+      '<div class="herocard-block"><div class="hero-section-label">Может</div>' +
+      '<ul class="ability-list">' + h.abilities.map(function (a) { return '<li><b>' + a.name + '</b> — ' + a.desc + '</li>'; }).join('') + '</ul></div>' +
       '<div class="swrow is-strength"><span class="sw-tag">Сильн.</span><span>' + (h.strength || '') + '</span></div>' +
       '<div class="swrow is-weakness"><span class="sw-tag">Слаб.</span><span>' + (h.weakness || '') + '</span></div>' +
-      '<button class="choice" id="pick-' + h.id + '" style="margin-top:14px;">Выбрать ' + h.name + '</button>';
-    document.getElementById('pick-' + h.id).onclick = function () { pickHero(h.id); };
+      '<button class="choice" id="pick-' + h.id + '" style="margin-top:14px;">Выбрать — ' + h.name + '</button>' +
+      '<button class="choice card-close" id="hero-modal-close" style="background:linear-gradient(180deg,#2a1a0c,#160d05);">Назад</button>';
+    back.appendChild(box);
+    back.onclick = function (e) { if (e.target === back) closeHeroModal(); };
+    document.body.appendChild(back);
+    var pImg = document.getElementById('hero-modal-portrait');
+    if (pImg) pImg.onerror = function () { swapToCrest(pImg, h); };
+    document.getElementById('pick-' + h.id).onclick = function () { closeHeroModal(); pickHero(h.id); };
+    document.getElementById('hero-modal-close').onclick = function () { closeHeroModal(); };
   }
   function pickHero(id) {
     audio.sfx.click(); pendingSelect.push(id);
-    document.getElementById('hero-detail').innerHTML = '';
     if (pendingSelect.length < 2) { renderHeroGrid(); }
     else { party = state.createParty(pendingSelect); save.write(party); enterScene('start'); }
   }
