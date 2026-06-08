@@ -270,3 +270,40 @@ h2,h3{font-family:'Forum', Georgia, serif;color:var(--gold);}
   .party-rail{flex-direction:column;gap:9px;}
   .herocard{max-width:none;}
 }
+
+/* ============================================================
+   TOP BAR BUTTONS + MOBILE / TABLET POLISH
+   ============================================================ */
+.mini{font-family:'Forum',Georgia,serif;font-size:1rem;line-height:1;
+  min-width:42px;min-height:36px;padding:7px 11px;margin:0 2px;cursor:pointer;
+  color:var(--text);background:rgba(40,24,12,.65);border:1px solid var(--gold);border-radius:7px;
+  -webkit-tap-highlight-color:transparent;transition:background .12s,transform .08s;}
+.mini:hover{background:rgba(70,44,20,.8);}
+.mini:active{transform:translateY(1px);}
+#turn-indicator{font-family:'Forum',Georgia,serif;font-size:.95rem;color:var(--gold);
+  margin-right:10px;vertical-align:middle;}
+#topbar{padding-top:calc(6px + env(safe-area-inset-top,0px));}
+
+/* keep gameplay content from sliding under the fixed top bar */
+#screen-scene,#screen-combat{padding-top:62px;}
+
+html{-webkit-text-size-adjust:100%;}
+body{overflow-x:hidden;}
+
+@media(max-width:760px){
+  .screen{padding:16px 14px;}
+  #screen-scene,#screen-combat{padding-top:58px;}
+  #turn-indicator{display:block;margin:0 0 5px;font-size:.86rem;}
+  .mini{min-height:40px;min-width:44px;font-size:1.08rem;}  /* finger-friendly tap targets */
+  h1,.title{font-size:2.1rem;line-height:1.1;}
+  .narration{font-size:17px;}
+  .enemy-art{width:96px;height:96px;}
+}
+@media(max-width:430px){
+  h1,.title{font-size:1.75rem;}
+  .choice{font-size:15px;padding:.8rem 1rem;}
+}
+/* tablets in landscape: keep both expanded hero cards side by side comfortably */
+@media(min-width:681px) and (max-width:1024px){
+  .herocard{flex:1 1 280px;}
+}
