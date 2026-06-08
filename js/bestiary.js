@@ -13,6 +13,11 @@
       maxHp: 12, defense: 11, attack: { bonus: 3, damage: 'd6' },
       undead: true, desc: 'Слаб к Изгнанию нежити и Свету.'
     },
+    drowned: {
+      id: 'drowned', name: 'Гнильный утопленник', art: 'assets/enemies/drowned.png',
+      maxHp: 14, defense: 11, attack: { bonus: 3, damage: 'd6' },
+      undead: true, desc: 'Разбухший мертвец из стоячей воды. Медлителен, но живуч. Слаб к Свету и Изгнанию нежити.'
+    },
     morven: {
       id: 'morven', name: 'Некромант Морвен', art: 'assets/enemies/morven.png',
       maxHp: 60, defense: 14, attack: { bonus: 5, damage: 'd8+3' },
