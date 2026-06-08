@@ -338,3 +338,38 @@ body{overflow-x:hidden;}
 @media(min-width:681px) and (max-width:1024px){
   .herocard{flex:1 1 280px;}
 }
+
+/* ============================================================
+   ACCESSIBILITY: respect "reduce motion".
+   Kill the infinite idle loops outright; collapse the brief feedback
+   animations to instant/short fades. The game stays fully playable —
+   only the movement is removed, never the information.
+   ============================================================ */
+@media (prefers-reduced-motion: reduce){
+  /* infinite loops: stop entirely, hold a neutral resting state */
+  .scene-bg.show{animation:none;transform:none;}
+  .candle{animation:none;opacity:1;}
+  .herocard::after{animation:none;display:none;}     /* idle sheen sweep */
+  .herocard,
+  .herocard.active{animation:none;}                  /* cardrise + activeglow */
+  .herocard.active{transform:none;}
+
+  /* brief feedback: no displacement/scale, keep a quick visibility fade */
+  .shaking-1,.shaking-2,.shaking-3{animation:none;}
+  .enemy-art.struck{animation:none;}
+  .flash-hit{animation:flashfade .2s ease-out;}
+  .float-num,
+  .float-num.float-big,
+  .float-num.float-crit{animation:floatfade .9s ease-out forwards;transform:translate(-50%,-20px);}
+
+  /* generic safety net for any other animated/transition-y elements */
+  *,*::before,*::after{
+    animation-duration:.01ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:.01ms !important;
+    scroll-behavior:auto !important;
+  }
+}
+/* fade-only variants used under reduced motion */
+@keyframes flashfade{0%{box-shadow:0 0 18px 4px rgba(200,20,20,.7);}100%{box-shadow:0 0 0 0 rgba(180,0,0,0);}}
+@keyframes floatfade{0%{opacity:0;}15%{opacity:1;}100%{opacity:0;}}
