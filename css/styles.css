@@ -29,12 +29,12 @@ body{
    image rather than re-grading it — keep it light so scenes aren't crushed. */
 .scene-bg{position:fixed;inset:0;z-index:0;background-size:cover;background-position:center;
   opacity:0;transition:opacity 1.2s ease;
-  filter:sepia(.15) brightness(.62) contrast(1.04) saturate(.9);
+  filter:sepia(.08) brightness(.95) contrast(1.02) saturate(.98);
   will-change:opacity,transform;}
 .scene-bg.show{opacity:1;animation:kenburns 26s ease-in-out infinite alternate;}
-/* dark readable veil so narration text always pops over the image */
+/* lighter veil — keeps text readable but lets the scene image clearly show */
 #bg-veil{position:fixed;inset:0;z-index:1;pointer-events:none;
-  background:radial-gradient(ellipse at center, rgba(15,10,4,.35) 0%, rgba(15,10,4,.72) 100%);}
+  background:radial-gradient(ellipse at center, rgba(15,10,4,.12) 0%, rgba(15,10,4,.5) 100%);}
 @keyframes kenburns{from{transform:scale(1.0);}to{transform:scale(1.09);}}
 
 /* fixed vignette overlay */

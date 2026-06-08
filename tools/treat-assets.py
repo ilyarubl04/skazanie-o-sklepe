@@ -94,6 +94,14 @@ def treat(src_path, out_path, *, strength):
         out = ImageEnhance.Color(out).enhance(0.92)      # pull stray saturation toward sepia
         out = ImageEnhance.Brightness(out).enhance(0.98)
         grain_strength, grain_opacity = 26, 0.06
+    elif strength == "scene":
+        # scene backgrounds: warm-unify but stay BRIGHT enough to read behind the UI
+        rgb = ImageEnhance.Contrast(rgb).enhance(1.04)
+        duo = _apply_duotone(rgb)
+        out = Image.blend(rgb, duo, 0.5)                 # half unify, keep the photo's light
+        out = ImageEnhance.Color(out).enhance(0.95)
+        out = ImageEnhance.Brightness(out).enhance(1.18) # lift so the image is clearly visible
+        grain_strength, grain_opacity = 22, 0.05
     else:  # light — portraits: protect the oils
         rgb = ImageEnhance.Contrast(rgb).enhance(1.05)
         duo = _apply_duotone(rgb)
@@ -122,7 +130,7 @@ def treat(src_path, out_path, *, strength):
 
 
 JOBS = {
-    "scenes":    dict(folder="scenes",    exts=(".jpg", ".jpeg"), strength="strong"),
+    "scenes":    dict(folder="scenes",    exts=(".jpg", ".jpeg"), strength="scene"),
     "enemies":   dict(folder="enemies",   exts=(".png",),         strength="strong"),
     "portraits": dict(folder="portraits", exts=(".png",),         strength="light"),
 }

@@ -167,7 +167,7 @@
   var MUSIC_BASE = 'assets/audio/music/';
   var FILE_VOL = 0.55;
   var PROC_VOL = 0.6;
-  var DUCK = 0.72;   // music drops to ~72% (≈28% quieter) while the narrator speaks
+  var DUCK = 0.35;   // music drops to ~35% (≈65% quieter) so the narrator is clearly heard
   function musicEl() { return (typeof document !== 'undefined') ? document.getElementById('music') : null; }
   function fileTarget() { return FILE_VOL * (audio._ducked ? DUCK : 1); }
 
