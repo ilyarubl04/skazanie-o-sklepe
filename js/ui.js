@@ -48,6 +48,7 @@
     var r = c && c.requires;
     if (!r) return true;
     if (r.flag && !party.flags[r.flag]) return false;
+    if (r.flagNot && party.flags[r.flagNot]) return false; // hide once a flag is set (e.g. quest done)
     if (r.hero && !partyHasHero(party, r.hero)) return false;
     if (r.ability && !partyHasAbility(party, r.ability)) return false;
     return true;

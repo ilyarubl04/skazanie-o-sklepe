@@ -43,7 +43,7 @@
     if (id.indexOf('chapel') === 0) return base + 'chapel.jpg';
     if (id.indexOf('crypt') === 0) return base + 'crypt.jpg';
     if (id.indexOf('boss') === 0) return base + 'boss.jpg';
-    if (id === 'start') return base + 'village.jpg';
+    if (id === 'start' || id === 'square' || id.indexOf('well') === 0) return base + 'village.jpg';
     if (id === 'ending_light' || id === 'ending_clever') return base + 'victory.jpg';
     if (id === 'ending_bitter') return base + 'crypt.jpg';
     if (id === 'defeat_scene') return base + 'crypt.jpg';
