@@ -32,12 +32,31 @@
   };
   ui.skipTyping = function (container) { if (container._skip) container._skip(); };
 
+  // is a hero (by def id) in the party?
+  function partyHasHero(party, heroId) {
+    return (party.heroes || []).some(function (h) { return (h.id || (h.def && h.def.id)) === heroId; });
+  }
+  // does any party hero have this ability (matched by ability id OR effect tag)?
+  function partyHasAbility(party, tag) {
+    return (party.heroes || []).some(function (h) {
+      var abilities = (h.def && h.def.abilities) || [];
+      return abilities.some(function (a) { return a.id === tag || a.effect === tag; });
+    });
+  }
+  // a choice is shown only if ALL its requirements are met (flag / hero / ability)
+  ui.choiceVisible = function (c, party) {
+    var r = c && c.requires;
+    if (!r) return true;
+    if (r.flag && !party.flags[r.flag]) return false;
+    if (r.hero && !partyHasHero(party, r.hero)) return false;
+    if (r.ability && !partyHasAbility(party, r.ability)) return false;
+    return true;
+  };
+
   ui.renderChoices = function (host, choices, party, onPick) {
     host.innerHTML = '';
     choices.forEach(function (c) {
-      var visible = true;
-      if (c.requires && c.requires.flag) visible = !!party.flags[c.requires.flag];
-      if (!visible) return;
+      if (!ui.choiceVisible(c, party)) return;
       var b = document.createElement('button');
       b.className = 'choice'; b.textContent = c.label;
       b.onclick = function () { onPick(c); };

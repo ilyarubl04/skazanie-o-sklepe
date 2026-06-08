@@ -508,6 +508,8 @@
     var statNameAcc = { str: 'Силу', dex: 'Ловкость', int: 'Ум', cha: 'Харизму' }[ch.stat];
     var hero = party.heroes[heroIdx];
     var extra = hasEdge ? 3 : 0;                       // ability edge: +3 to the roll
+    // a story flag (e.g. the bard's ballad softened Морвен) can add a further bonus
+    if (ch.extraFlag && party.flags[ch.extraFlag]) extra += (ch.extra || 0);
     var bonus = D.rules.statBonus(hero.def.stats[ch.stat]) + extra;
     var diff = D.rules.DIFFICULTY[ch.difficulty];
     var word = diffWord(ch);

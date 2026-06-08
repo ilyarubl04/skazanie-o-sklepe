@@ -132,7 +132,29 @@
         ],
         choices: [
           { label: 'Разгадать руны (Ум)', goto: 'chapel_runes' },
-          { label: 'Искать другой вход (Следопытство)', goto: 'chapel_search' }
+          { label: 'Искать другой вход (Следопытство)', goto: 'chapel_search' },
+          { label: 'Сестра Мира вскидывает символ света', goto: 'chapel_mira', requires: { ability: 'turn_undead' } },
+          { label: 'Тэя читает звериные тропы у часовни', goto: 'chapel_thea', requires: { hero: 'thea' } }
+        ]
+      },
+      {
+        id: 'chapel_mira', music: 'crypt',
+        text: [
+          'Сестра Мира выходит вперёд и поднимает над головой символ света. Руны на двери вспыхивают и гаснут, как угли под дождём, а тени в глубине склепа отшатываются прочь.',
+          'Костяные стражи внизу оседают грудами, не успев подняться. Святой свет расчистил вам путь — на этот раз без боя.'
+        ],
+        choices: [
+          { label: 'Спуститься в склеп', goto: 'crypt_note', set: { miraDispelled: true } }
+        ]
+      },
+      {
+        id: 'chapel_thea', music: 'crypt',
+        text: [
+          'Тэя опускается на колено и ведёт ладонью по земле: вот просевший дёрн, вот сквозняк из трещины, вот сбитый зверем мох. Через минуту она кивает — есть второй путь вниз.',
+          'Она проводит вас тихо, тропой, которой не знают мёртвые. Никакого шума, никакой лишней стражи — только холодный спуск во тьму.'
+        ],
+        choices: [
+          { label: 'Спуститься скрытым лазом', goto: 'chapel_fight' }
         ]
       },
       {
@@ -239,7 +261,8 @@
         choices: [
           { label: 'Сразиться с Морвеном', goto: 'boss_fight' },
           { label: 'Воззвать к свету Светоча', goto: 'boss_light', requires: { flag: 'hasRelic' } },
-          { label: 'Заговорить Морвена (Убеждение)', goto: 'boss_talk', requires: { flag: 'knowsBell' } }
+          { label: 'Заговорить Морвена (Убеждение)', goto: 'boss_talk', requires: { flag: 'knowsBell' } },
+          { label: 'Каэль заводит балладу о забытом некроманте', goto: 'boss_talk', requires: { hero: 'kael' }, set: { bardEncouraged: true } }
         ]
       },
       {
@@ -273,6 +296,7 @@
         ],
         check: {
           stat: 'cha', difficulty: 'veryHard', ability: 'persuade',
+          extraFlag: 'bardEncouraged', extra: 3,
           label: 'Достучаться до Морвена',
           onSuccess: 'ending_clever', onFail: 'boss_fight'
         }
