@@ -6,6 +6,8 @@
     {
       id: 'brand', name: 'Бранд', role: 'Воин', portrait: 'assets/portraits/brand.png', crest: '🛡️',
       story: 'Ветеран, оставивший армию ради искупления. Стоит как стена между бедой и слабым.',
+      strength: 'Несокрушим в ближнем бою и защищает союзников.',
+      weakness: 'Беспомощен против магии и хитрых ловушек.',
       stats: { str: 5, dex: 2, int: 1, cha: 2 }, maxHp: 34, defense: 14,
       attack: { name: 'Удар меча', bonus: 5, damage: 'd8+3', stat: 'str' },
       abilities: [
@@ -17,6 +19,8 @@
     {
       id: 'lira', name: 'Лира', role: 'Маг', portrait: 'assets/portraits/lira.png', crest: '🔥',
       story: 'Сбежала из закрытой академии с запретной книгой. Огонь слушается её слов.',
+      strength: 'Сжигает врагов мощной магией на расстоянии.',
+      weakness: 'Хрупка — мало здоровья, гибнет в ближнем бою.',
       stats: { str: 1, dex: 2, int: 5, cha: 3 }, maxHp: 20, defense: 11,
       attack: { name: 'Удар посоха', bonus: 5, damage: 'd6+3', stat: 'int' },
       abilities: [
@@ -28,6 +32,8 @@
     {
       id: 'finn', name: 'Финн', role: 'Плут', portrait: 'assets/portraits/finn.png', crest: '🗡️',
       story: 'Вор с золотым сердцем и долгом перед гильдией. Замок для него — приглашение.',
+      strength: 'Ловок: взламывает замки, ловушки и бьёт из тени.',
+      weakness: 'Слаб в прямом бою силой, не выстоит в лоб.',
       stats: { str: 2, dex: 5, int: 3, cha: 3 }, maxHp: 24, defense: 13,
       attack: { name: 'Удар кинжалов', bonus: 6, damage: 'd6+4', stat: 'dex' },
       abilities: [
@@ -39,6 +45,8 @@
     {
       id: 'mira', name: 'Сестра Мира', role: 'Жрец', portrait: 'assets/portraits/mira.png', crest: '✨',
       story: 'Жрица света, пришедшая на зов о пропавших. Нежить страшится её молитв.',
+      strength: 'Лечит союзников и изгоняет нежить светом.',
+      weakness: 'Скромный урон — плохо бьёт в одиночку.',
       stats: { str: 2, dex: 2, int: 4, cha: 4 }, maxHp: 28, defense: 13,
       attack: { name: 'Удар булавы', bonus: 4, damage: 'd6+2', stat: 'str' },
       abilities: [
@@ -50,6 +58,8 @@
     {
       id: 'thea', name: 'Тэя', role: 'Следопыт', portrait: 'assets/portraits/thea.png', crest: '🏹',
       story: 'Одиночка с границы леса. Знает тропы, которых нет на картах.',
+      strength: 'Метко бьёт издалека и находит скрытые тропы.',
+      weakness: 'Уязвима вблизи — теряется в тесной свалке.',
       stats: { str: 3, dex: 4, int: 3, cha: 2 }, maxHp: 26, defense: 13,
       attack: { name: 'Выстрел из лука', bonus: 6, damage: 'd8+3', stat: 'dex', ranged: true },
       abilities: [
@@ -61,6 +71,8 @@
     {
       id: 'kael', name: 'Каэль', role: 'Бард', portrait: 'assets/portraits/kael.png', crest: '🎵',
       story: 'Странствующий менестрель, что собирает истории и бежит от собственной.',
+      strength: 'Вдохновляет союзников и ломает волю врагов словом.',
+      weakness: 'Не танк — бережёт себя, мало брони и здоровья.',
       stats: { str: 2, dex: 3, int: 3, cha: 5 }, maxHp: 24, defense: 12,
       attack: { name: 'Удар рапиры', bonus: 4, damage: 'd6+2', stat: 'dex' },
       abilities: [
