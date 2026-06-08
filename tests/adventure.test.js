@@ -59,6 +59,58 @@ test('flag-gated choices still work and ungated choices are always visible', fun
   assertEqual(ui.choiceVisible({ label: 'plain' }, p), true);
 });
 
+// ---- finale: all 7 endings exist and pickEnding is a TOTAL deterministic router ----
+test('all 7 ending scenes exist and are routable', function () {
+  var map = ids(ADVENTURE);
+  ['ending_dawn', 'ending_light', 'ending_clever', 'ending_bitter',
+   'ending_yoren', 'ending_silence', 'defeat_scene'].forEach(function (e) {
+    assert(map[e], 'ending scene ' + e + ' exists');
+    assert(map[e].ending, e + ' is flagged as an ending');
+  });
+});
+test('serdce node wires into Act 5 and the finale fight routes to finale_resolve', function () {
+  var map = ids(ADVENTURE);
+  assert(map.abyss_descent, 'Act 5 entry scene exists');
+  assertEqual(map.abyss_descent.levelUp, 4, 'level-up #4 fires entering Act 5');
+  assert(map.serdce_fight.combat.enemies.some(function (e) { return e.type === 'shepherd'; }), 'final fight is the shepherd');
+  assertEqual(map.serdce_fight.combat.onWin, 'finale_resolve', 'win routes to the finale router');
+  assertEqual(map.serdce_fight.combat.onLose, 'defeat_scene', 'loss routes to defeat');
+});
+test('pickEnding is total: every probed flag-state lands on a real ending scene', function () {
+  var map = ids(ADVENTURE);
+  function partyWith(flags) { var p = state.createParty(['kael', 'mira']); p.flags = flags || {}; return p; }
+  // exhaustively sweep the decisive flags and assert each result is a defined ending scene
+  var bools = [false, true];
+  var count = 0;
+  bools.forEach(function (f1) { bools.forEach(function (f2) { bools.forEach(function (f3) {
+    bools.forEach(function (relic) { bools.forEach(function (ritual) {
+      bools.forEach(function (yA) { bools.forEach(function (yD) { bools.forEach(function (maya) {
+        var p = partyWith({ tuningFork1: f1, tuningFork2: f2, tuningFork3: f3,
+          hasRelic: relic, knowsRitual: ritual, yorenAlive: yA, yorenDead: yD, mayaSaved: maya });
+        var e = ADVENTURE.pickEnding(p);
+        assert(map[e] && map[e].ending, 'pickEnding -> real ending for state #' + count + ' (' + e + ')');
+        count++;
+      }); }); });
+    }); });
+  }); }); });
+});
+test('pickEnding hits each finale ending for some flag-state (all reachable)', function () {
+  function p(flags) { var pp = state.createParty(['kael', 'mira']); pp.flags = flags; return pp; }
+  // 1) dawn — full set + ritual + Йорен жив + уговор Майи
+  assertEqual(ADVENTURE.pickEnding(p({ tuningFork1: 1, tuningFork2: 1, tuningFork3: 1, hasRelic: 1, knowsRitual: 1, yorenAlive: 1, mayaSaved: 1 })), 'ending_dawn');
+  // 6) silence — почти пусто (0 камертонов, без Светоча)
+  assertEqual(ADVENTURE.pickEnding(p({})), 'ending_silence');
+  assertEqual(ADVENTURE.pickEnding(p({ tuningFork1: 1 })), 'ending_silence');
+  // 5) yoren — Йорен погиб
+  assertEqual(ADVENTURE.pickEnding(p({ tuningFork1: 1, tuningFork2: 1, hasRelic: 1, yorenDead: 1 })), 'ending_yoren');
+  // 2) light — Светоч + ритуал, Майя спасена
+  assertEqual(ADVENTURE.pickEnding(p({ tuningFork1: 1, tuningFork2: 1, hasRelic: 1, knowsRitual: 1, mayaSaved: 1 })), 'ending_light');
+  // 3) clever — достучались словом (без Светоча/ритуала)
+  assertEqual(ADVENTURE.pickEnding(p({ tuningFork1: 1, tuningFork2: 1, mayaSaved: 1 })), 'ending_clever');
+  // 4) bitter — сила без перенастройки (камертоны, но ни Светоча, ни ритуала, ни уговора)
+  assertEqual(ADVENTURE.pickEnding(p({ tuningFork1: 1, tuningFork2: 1, tuningFork3: 1 })), 'ending_bitter');
+});
+
 test('no scene is left with zero available options for any 2-hero party', function () {
   // any party that could reach a choice scene; test a few representative comps
   var parties = [

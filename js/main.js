@@ -56,8 +56,8 @@
     if (id.indexOf('crypt') === 0) return base + 'crypt.jpg';
     if (id.indexOf('boss') === 0) return base + 'boss.jpg';
     if (id === 'start' || id === 'square' || id.indexOf('well') === 0) return base + 'village.jpg';
-    if (id === 'ending_light' || id === 'ending_clever') return base + 'victory.jpg';
-    if (id === 'ending_bitter') return base + 'crypt.jpg';
+    if (id === 'ending_light' || id === 'ending_clever' || id === 'ending_dawn' || id === 'ending_yoren') return base + 'victory.jpg';
+    if (id === 'ending_bitter' || id === 'ending_silence') return base + 'crypt.jpg';
     if (id === 'defeat_scene') return base + 'crypt.jpg';
     if (id === 'morven_truth') return base + 'crypt.jpg';   // the ominous reveal under the склеп
     if (id === 'chapter1_end') return base + 'chapel.jpg';  // dawn at the склеп threshold — season-finale
@@ -428,6 +428,9 @@
   function enterScene(id) {
     // safety net: the world-map pseudo-scene routes to the map screen, never renders
     if (id === '__map__') { enterMap(party.mapNode || 'tihiy_brod', true); return; }
+    // finale router: compute which of the 7 endings the accumulated flags earn,
+    // then jump straight there (finale_resolve itself never renders).
+    if (id === 'finale_resolve') { enterScene(ADV.pickEnding(party)); return; }
     setSceneBg(sceneBg(id));
     if (voice && voice.playScene) voice.playScene(id);
     party.sceneId = id; save.write(party);

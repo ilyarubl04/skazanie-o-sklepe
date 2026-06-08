@@ -50,7 +50,7 @@
       { id: 'kripta',       label: 'Крипта Ордена',     x: 90, y: 30, act: 4, icon: '⚰️', enter: 'order_crypt',    done: 'map_kripta' },
       { id: 'zatopl_cerkov',label: 'Затопл. церковь',   x: 84, y: 44, act: 4, icon: '🌊', enter: 'flooded_church', done: 'map_zatopl_cerkov' },
       // ---- Акт 5 — placeholder (locked / under the fog until built) ----
-      { id: 'serdce',       label: 'Сердце-Колокол',    x: 90, y: 58, act: 5, icon: '🕳️', enter: null, done: 'map_serdce' }
+      { id: 'serdce',       label: 'Сердце-Колокол',    x: 90, y: 58, act: 5, icon: '🕳️', enter: 'abyss_descent', done: 'map_serdce' }
     ],
     // undirected path graph (an edge means "you can travel between these two")
     edges: [
