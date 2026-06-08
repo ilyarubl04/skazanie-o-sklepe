@@ -310,6 +310,15 @@
     setTimeout(function () { if (banner.parentNode) banner.parentNode.removeChild(banner); }, 3500);
   }
 
+  // difficulty value/key -> a plain Russian word the player understands at a glance
+  var DIFF_WORDS = { easy: 'Легко', medium: 'Средне', hard: 'Сложно', veryHard: 'Очень сложно' };
+  function diffWord(ch) {
+    if (ch && DIFF_WORDS[ch.difficulty]) return DIFF_WORDS[ch.difficulty];
+    var v = D.rules.DIFFICULTY[ch && ch.difficulty];
+    if (typeof v !== 'number') return '';
+    return v <= 8 ? 'Легко' : v <= 11 ? 'Средне' : v <= 14 ? 'Сложно' : 'Очень сложно';
+  }
+
   function renderCheck(scene) {
     var actions = document.getElementById('scene-actions'); actions.innerHTML = '';
     var ch = scene.check;
@@ -317,12 +326,15 @@
     var b = document.createElement('button'); b.className = 'choice';
     b.textContent = (ch.label || 'Проверка') + ' — бросок на ' + statName;
     b.onclick = function () {
+      audio.sfx.click();
       b.disabled = true;
       // use the hero with the higher stat of the two for fairness
       var best = party.heroes.reduce(function (a, h) { return h.def.stats[ch.stat] > a.def.stats[ch.stat] ? h : a; });
       var bonus = D.rules.statBonus(best.def.stats[ch.stat]);
       var diff = D.rules.DIFFICULTY[ch.difficulty];
-      D.diceThrow.roll({ prompt: 'Бросок на ' + statName, onSettle: function (face) {
+      var word = diffWord(ch);
+      var prompt = 'Бросок на ' + statName + (word ? ' · ' + word + ' (против ' + diff + ')' : '');
+      D.diceThrow.roll({ prompt: prompt, onSettle: function (face) {
         var total = face + bonus;
         var crit = face === 20, critFail = face === 1;
         var mathSuccess = total >= diff;
@@ -331,7 +343,7 @@
         // near-miss: failed but within 2 below difficulty and not a natural 1
         var partial = !success && !critFail && total >= diff - 2;
         var res = {
-          d20: face, bonus: bonus, total: total, difficulty: diff,
+          d20: face, bonus: bonus, total: total, difficulty: diff, diffWord: word,
           success: success, partial: partial, crit: crit, critFail: critFail
         };
         showDiceResult(document.getElementById('dice-tray'), res, function () {
@@ -365,21 +377,28 @@
     var verdict = res.success ? '<span style="color:#2e6b4f">Успех!</span>'
                 : res.partial ? '<span style="color:#c08a2e">Успех ценой…</span>'
                 : '<span style="color:#8b0000">Провал</span>';
+    var diffLabel = res.diffWord ? res.diffWord + ' · против ' + res.difficulty : 'против ' + res.difficulty;
     tray.innerHTML = '<div class="panel" style="text-align:center;font-family:\'Forum, Georgia, serif\'">' +
-      '🎲 ' + res.d20 + ' + ' + res.bonus + ' = <b>' + res.total + '</b> против ' + res.difficulty +
+      '🎲 ' + res.d20 + ' + ' + res.bonus + ' = <b>' + res.total + '</b> ' + diffLabel +
       '<br>' + verdict +
       flourish + '</div>';
     setTimeout(function () { tray.innerHTML = ''; done(); }, 1600);
   }
 
   // ---------- combat juice helpers (presentation only) ----------
-  function shake() {
-    var el = document.getElementById('screen-combat');
+  // Shake a stable full-bleed element (body) rather than the centered #screen-combat,
+  // which would otherwise reveal edge gaps when it slides. Intensity 1..3 scales the
+  // amplitude/duration via distinct CSS classes.
+  var SHAKE_MS = { 1: 240, 2: 320, 3: 420 };
+  function shake(intensity) {
+    var lvl = intensity >= 3 ? 3 : intensity >= 2 ? 2 : 1;
+    var el = document.body;
     if (!el) return;
-    el.classList.remove('shaking');
+    el.classList.remove('shaking-1', 'shaking-2', 'shaking-3');
     void el.offsetWidth; // force reflow so the animation can restart
-    el.classList.add('shaking');
-    setTimeout(function () { el.classList.remove('shaking'); }, 320);
+    var cls = 'shaking-' + lvl;
+    el.classList.add(cls);
+    setTimeout(function () { el.classList.remove(cls); }, SHAKE_MS[lvl] + 20);
   }
   function flashHit(el) {
     if (!el) return;
@@ -388,18 +407,32 @@
     el.classList.add('flash-hit');
     setTimeout(function () { if (el) el.classList.remove('flash-hit'); }, 350);
   }
-  function floatNumber(targetEl, text, color) {
+  // brief whiten + scale punch on a hit enemy's portrait (the blow "landing")
+  function struck(panel) {
+    if (!panel) return;
+    var art = panel.querySelector ? panel.querySelector('.enemy-art') : null;
+    if (!art) return;
+    art.classList.remove('struck');
+    void art.offsetWidth;
+    art.classList.add('struck');
+    setTimeout(function () { if (art) art.classList.remove('struck'); }, 260);
+  }
+  // floating combat number. opts: {big:Boolean, crit:Boolean} scale size/weight.
+  function floatNumber(targetEl, text, color, opts) {
     if (!targetEl || typeof targetEl.getBoundingClientRect !== 'function') return;
+    opts = opts || {};
     var r = targetEl.getBoundingClientRect();
     var el = document.createElement('div');
-    el.className = 'float-num';
+    el.className = 'float-num' + (opts.crit ? ' float-crit' : opts.big ? ' float-big' : '');
     el.textContent = text;
     el.style.color = color || '#fff';
     el.style.left = (r.left + r.width / 2) + 'px';
     el.style.top = (r.top + r.height * 0.28) + 'px';
     document.body.appendChild(el);
-    setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 950);
+    setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 1100);
   }
+  // map a damage value to a shake intensity tier (1 subtle .. 3 strong)
+  function dmgTier(dmg) { return dmg >= 8 ? 3 : dmg >= 4 ? 2 : 1; }
   // find a rendered enemy panel by its uid (set as data-uid during renderCombat)
   function enemyPanel(uid) {
     if (!uid) return null;
@@ -460,15 +493,26 @@
     atk.textContent = '⚔ Атаковать ' + (firstEnemy ? firstEnemy.name : '');
     atk.onclick = function () {
       if (!firstEnemy) return;
+      audio.sfx.click();   // press feedback (the result SFX plays after the throw)
       var targetUid = firstEnemy.uid;
       D.diceThrow.roll({ prompt: 'Бросок на попадание', onSettle: function (face) {
         var r = combat.heroAttack(party, combatCtx.heroTurn, targetUid, Math.random, face);
         var panel = enemyPanel(targetUid);
+        var crit = face === 20;   // a thrown 20 in combat is a crit
         if (r.hit) {
           audio.sfx.sword();
-          shake();
+          // the blow "lands" instantly on the target, then a micro-freeze before
+          // the screen shakes and the damage number flies up (hitstop).
+          struck(panel);
           flashHit(panel);
-          floatNumber(panel, '−' + r.damage, '#e8413a');
+          audio.haptic(crit ? [0, 30, 40, 60] : 20);
+          var tier = crit ? 3 : dmgTier(r.damage);
+          var stop = crit ? 130 : 70;
+          setTimeout(function () {
+            shake(tier);
+            if (crit) floatNumber(panel, 'КРИТ! −' + r.damage, '#ffe9a8', { crit: true });
+            else floatNumber(panel, '−' + r.damage, '#e8413a', { big: tier >= 2 });
+          }, stop);
         } else {
           audio.sfx.miss();
           floatNumber(panel, 'мимо', '#bdb0a0');
@@ -482,9 +526,13 @@
       if (ab.uses === 'unlimited' || ab.effect === 'utility') return; // utilities not used in combat menu
       var left = hero.abilityUses[ab.id];
       var b = document.createElement('button'); b.className = 'choice';
-      b.textContent = '✦ ' + ab.name + (left !== undefined ? ' (' + left + ')' : '');
+      // label line + small description subtitle for legibility
+      var label = '✦ ' + ab.name + (left !== undefined ? ' (' + left + ')' : '');
+      b.innerHTML = '<span class="choice-label">' + label + '</span>' +
+        (ab.desc ? '<span class="choice-sub">' + ab.desc + '</span>' : '');
       b.disabled = (left === 0);
       b.onclick = function () {
+        audio.sfx.click();   // press feedback before the ability's own SFX
         var target = firstEnemy ? firstEnemy.uid : null;
         var healAllyIdx = -1;
         if (ab.effect === 'heal') {
@@ -503,10 +551,13 @@
                     : 'dice';
         if (audio.sfx[sfxName]) audio.sfx[sfxName]();
         if (r && r.damage) {
-          shake();
           var ep = enemyPanel(enemyUid);
+          var tier = dmgTier(r.damage);
+          struck(ep);
           flashHit(ep);
-          floatNumber(ep, '−' + r.damage, '#e8413a');
+          audio.haptic(20);
+          shake(tier);
+          floatNumber(ep, '−' + r.damage, '#e8413a', { big: tier >= 2 });
         }
         if (r && r.heal && healAllyIdx >= 0) {
           floatNumber(heroPanel(healAllyIdx), '+' + r.heal, '#5fd47a');
@@ -527,17 +578,19 @@
       // snapshot hero hp so we can show per-hero damage from the enemies' turn
       var before = party.heroes.map(function (h) { return h.hp; });
       combat.enemiesTurn(party, Math.random);
-      var anyHit = false;
+      var anyHit = false, worst = 0;
       party.heroes.forEach(function (h, i) {
         var delta = before[i] - h.hp;
         if (delta > 0) {
           anyHit = true;
+          if (delta > worst) worst = delta;
           var hp = heroPanel(i);
           flashHit(hp);
-          floatNumber(hp, '−' + delta, '#e8413a');
+          var tier = dmgTier(delta);
+          floatNumber(hp, '−' + delta, '#e8413a', { big: tier >= 2 });
         }
       });
-      if (anyHit) shake();
+      if (anyHit) { audio.haptic(40); shake(dmgTier(worst)); }
       renderCombat();
     } else {
       // pass-device prompt between the two players
