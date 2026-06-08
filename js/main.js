@@ -284,18 +284,40 @@
     if (scene.combat) return startSceneCombat(scene);
     ui.show('screen-scene');
     document.getElementById('topbar').style.display = 'block';
-    // (re)render both hero cards for the current party; narration highlights the active player
+
+    // Turn ownership: narrative CHOICE scenes rotate a "lead decider" between players.
+    // Checks don't rotate the lead (the player picks WHO throws inside the check itself).
+    var isChoiceScene = scene.choices && !scene.check && !scene.ending && !scene.combat;
+    if (isChoiceScene) {
+      if (typeof party.leadPlayer !== 'number') party.leadPlayer = 0; // first lead = Player 1
+      else party.leadPlayer = (party.leadPlayer + 1) % party.heroes.length;
+      party.activePlayer = party.leadPlayer; // keep hero-card highlight in sync
+      save.write(party);
+    }
+    // (re)render both hero cards for the current party; the active player is highlighted
     renderParty(document.getElementById('scene-party'), party.activePlayer);
     var textEl = document.getElementById('scene-text');
     var actions = document.getElementById('scene-actions'); actions.innerHTML = '';
     textEl.onclick = function () { ui.skipTyping(textEl); };
     ui.typeParagraphs(textEl, scene.text, { dropcap: scene.dropCap }, function () {
       if (scene.check) renderCheck(scene);
-      else ui.renderChoices(actions, scene.choices, party, function (c) {
-        audio.sfx.click(); if (c.set) Object.keys(c.set).forEach(function (k) { state.setFlag(party, k, c.set[k]); });
-        enterScene(c.goto);
-      });
+      else {
+        if (isChoiceScene) showLeadBanner(actions, party.leadPlayer);
+        ui.renderChoices(actions, scene.choices, party, function (c) {
+          audio.sfx.click(); if (c.set) Object.keys(c.set).forEach(function (k) { state.setFlag(party, k, c.set[k]); });
+          enterScene(c.goto);
+        });
+      }
     });
+  }
+
+  // tasteful gold banner: who reads/decides this narrative scene (players still discuss)
+  function showLeadBanner(host, leadIdx) {
+    var h = party.heroes[leadIdx];
+    var banner = document.createElement('div'); banner.className = 'lead-banner';
+    banner.innerHTML = '<span class="lead-dot">◆</span> Решает: ' +
+      'Игрок ' + (leadIdx + 1) + (h ? ' — ' + h.def.name : '');
+    host.appendChild(banner);
   }
 
   // small on-screen note prepended to the narration (no alert)
@@ -658,16 +680,32 @@
       if (anyHit) { audio.haptic(40); shake(dmgTier(worst)); }
       renderCombat();
     } else {
-      // pass-device prompt between the two players
-      passDevice(combatCtx.heroTurn, function () { renderCombat(); });
+      // pass-device prompt between the two players — recap the last combat-log line
+      var logLine = party.combat.log.length ? party.combat.log[party.combat.log.length - 1] : '';
+      passDevice(combatCtx.heroTurn, function () { renderCombat(); }, { recap: logLine });
     }
   }
 
   // ---------- pass device ----------
-  function passDevice(playerIndex, done) {
-    document.getElementById('pass-text').textContent = 'Передайте устройство Игроку ' + (playerIndex + 1);
+  // Hand-off ritual: name the INCOMING player and their hero, optionally recap the
+  // last thing that happened, then a single "Готово" the new holder taps.
+  // opts: { recap: String, backTo: screen-id to show after (default 'screen-combat') }
+  function passDevice(playerIndex, done, opts) {
+    opts = opts || {};
+    var hero = party.heroes[playerIndex];
+    document.getElementById('pass-text').textContent =
+      'Передайте устройство Игроку ' + (playerIndex + 1) + (hero ? ' — ' + hero.def.name : '');
+    var recapEl = document.getElementById('pass-recap');
+    if (recapEl) {
+      if (opts.recap) { recapEl.textContent = opts.recap; recapEl.style.display = 'block'; }
+      else { recapEl.textContent = ''; recapEl.style.display = 'none'; }
+    }
     ui.show('screen-pass');
-    document.getElementById('btn-pass-ok').onclick = function () { ui.show('screen-combat'); done(); };
+    document.getElementById('btn-pass-ok').onclick = function () {
+      audio.sfx.click();
+      ui.show(opts.backTo || 'screen-combat');
+      done();
+    };
   }
 
   // ---------- ending ----------
