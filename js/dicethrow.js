@@ -73,6 +73,7 @@
       moving: false, settled: false
     };
     var slowFrames = 0, frames = 0, lastKnock = 0, rafId = null, finished = false, awaitingContinue = false;
+    var settleAt = 0;   // timestamp the die settled (drives the result scale-overshoot)
 
     var dragging = false, samples = [], pressedOnDie = false;
     function localPoint(ev) { var r = canvas.getBoundingClientRect(); return { x: ev.clientX - r.left, y: ev.clientY - r.top }; }
@@ -138,6 +139,8 @@
       if (now - lastKnock < KNOCK_MS) return;
       lastKnock = now;
       if (audio && audio.sfx && audio.sfx.woodKnock) audio.sfx.woodKnock(intensity);
+      // short tactile tick scaled by the strength of the contact
+      if (audio && audio.haptic) audio.haptic(Math.round(6 + (intensity || 0) * 12));
     }
 
     function step() {
@@ -180,7 +183,9 @@
       die.vx = die.vz = die.avx = die.avy = die.avz = 0;
       // ease rotation to a clean upright-ish resting pose
       awaitingContinue = true;
+      settleAt = (typeof performance !== 'undefined' ? performance.now() : Date.now());
       if (audio && audio.sfx && audio.sfx.diceLand) audio.sfx.diceLand();
+      if (audio && audio.haptic) audio.haptic(35);   // final thud
     }
 
     // ---- 3D rotation + projection + shading ----
@@ -283,14 +288,28 @@
       var s = dieScreen();
       drawDie(s.x, s.y, DIE_R, 1);
 
-      // big result readout once settled
+      // big result readout once settled — punchy scale-overshoot + colour tint
       if (die.settled) {
-        ctx2d.fillStyle = '#d4a853';
+        var now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+        var t = Math.max(0, Math.min(1, (now - settleAt) / 260)); // 0..1 over ~260ms
+        // overshoot: grow past 1 then settle back (peak ~1.28 around t=0.45)
+        var scale = 1 + 0.42 * Math.sin(t * Math.PI) * (1 - t * 0.35);
+        // colour: bright gold on a 20, crimson on a 1, normal gold otherwise
+        var fill = finalFace === 20 ? '#ffe9a8' : finalFace === 1 ? '#b5202a' : '#d4a853';
+        var glow = finalFace === 20 ? 'rgba(255,235,150,.95)'
+                 : finalFace === 1 ? 'rgba(180,30,30,.85)'
+                 : 'rgba(255,200,80,.8)';
+        var cx = W / 2, cy = groundY + (H - groundY) / 2 + 22;
+        ctx2d.save();
+        ctx2d.translate(cx, cy);
+        ctx2d.scale(scale, scale);
+        ctx2d.fillStyle = fill;
         ctx2d.font = "bold 64px 'Forum', Georgia, serif";
         ctx2d.textAlign = 'center'; ctx2d.textBaseline = 'alphabetic';
-        ctx2d.shadowColor = 'rgba(255,200,80,.8)'; ctx2d.shadowBlur = 24;
-        ctx2d.fillText(String(finalFace), W / 2, groundY + (H - groundY) / 2 + 22);
+        ctx2d.shadowColor = glow; ctx2d.shadowBlur = finalFace === 20 ? 34 : 24;
+        ctx2d.fillText(String(finalFace), 0, 0);
         ctx2d.shadowBlur = 0;
+        ctx2d.restore();
       }
     }
     function roundRect(x, y, w, h, r) {
