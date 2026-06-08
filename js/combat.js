@@ -23,6 +23,13 @@
     (party.heroes || []).forEach(function (hero) {
       var uses = {};
       hero.def.abilities.forEach(function (a) { if (a.uses !== 'unlimited') uses[a.id] = a.uses; });
+      // campaign level-ups grant extra uses on top of the per-fight refill
+      var rec = party.upgrades && party.upgrades[hero.id];
+      if (rec && rec.extraUses) {
+        Object.keys(rec.extraUses).forEach(function (abId) {
+          if (uses[abId] !== undefined) uses[abId] += rec.extraUses[abId];
+        });
+      }
       hero.abilityUses = uses;
       hero.statuses = [];
     });
@@ -71,7 +78,8 @@
     var res = { hit: false, roll: toHit.total };
     if (toHit.total >= enemy.defense || toHit.natural === 20) {
       var dmg = dice.roll(atk.damage, rng);
-      var total = dmg.total * (consumeDouble(hero) ? 2 : 1);
+      var atkUp = (state.heroAtkBonus ? state.heroAtkBonus(party, hero.id) : 0) || 0;
+      var total = (dmg.total + atkUp) * (consumeDouble(hero) ? 2 : 1);
       applyDamageToEnemy(c, enemy, total, c.log);
       res.hit = true; res.damage = total;
     } else {
@@ -152,8 +160,11 @@
     }
     return false;
   }
-  function heroDefense(hero) {
-    var d = hero.def.defense; hero.statuses.forEach(function (s) { if (s.type === 'def') d += s.value; }); return d;
+  function heroDefense(hero, party) {
+    var d = hero.def.defense;
+    hero.statuses.forEach(function (s) { if (s.type === 'def') d += s.value; });
+    if (party && state.heroDefBonus) d += (state.heroDefBonus(party, hero.id) || 0);
+    return d;
   }
 
   // smarter AI: pick the lowest-current-HP target; ties broken randomly so it isn't fully predictable
@@ -205,17 +216,31 @@
     if (combat.combatStatus(party) !== 'ongoing') return;
     aliveEnemies(c).forEach(function (enemy) {
       enemy.turnCount++;
+      var sp = enemy.boss ? enemy.def.special : null;
+      // ---- phase / enrage transition (data-driven, backward-compatible) ----
+      // a boss with special.phaseAt enters a new phase once its HP fraction drops below it.
+      if (sp && sp.phaseAt && !enemy.phased && (enemy.hp / enemy.maxHp) < sp.phaseAt) {
+        enemy.phased = true;
+        c.log.push(enemy.name + ' входит в ярость!');
+      }
+      var enraged = enemy.phased && sp && sp.enrage; // damage/aggression boost while enraged
       // boss summon + wave
-      if (enemy.boss && enemy.def.special) {
-        if (enemy.turnCount % enemy.def.special.summonEvery === 0) {
-          c.enemies.push(makeEnemy({ type: enemy.def.special.summon }));
+      if (sp) {
+        // enraged bosses summon one step faster (every-1 sooner)
+        var every = sp.summonEvery;
+        if (enraged && every > 1) every = every - 1;
+        if (every && enemy.turnCount % every === 0) {
+          c.enemies.push(makeEnemy({ type: sp.summon }));
           c.log.push(enemy.name + ' поднимает нового скелета!');
         }
-        // every 3rd boss turn: a dark wave hits BOTH standing heroes instead of one strike
-        if (enemy.def.special.wave && enemy.turnCount % 3 === 0) {
+        // dark wave hits BOTH standing heroes instead of one strike;
+        // enraged bosses unleash it more often (every 2nd turn instead of 3rd)
+        var waveEvery = enraged ? 2 : 3;
+        if (sp.wave && enemy.turnCount % waveEvery === 0) {
           c.log.push(enemy.name + ' обрушивает тёмную волну!');
           party.heroes.filter(function (h) { return !h.downed; }).forEach(function (h) {
-            var wdmg = dice.roll(enemy.def.special.wave, rng).total;
+            var wdmg = dice.roll(sp.wave, rng).total;
+            if (enraged) wdmg = Math.round(wdmg * 1.5); // +50% while enraged
             state.damageHero(h, wdmg);
             c.log.push(h.def.name + ' захлёстнут волной — ' + wdmg + ' урона.');
           });
@@ -227,8 +252,9 @@
       if (targets.length === 0) return;
       var target = pickWeakest(targets, rng);
       var toHit = dice.rollD20(enemy.def.attack.bonus - (enemy.atkPenalty || 0), rng);
-      if (toHit.total >= heroDefense(target)) {
+      if (toHit.total >= heroDefense(target, party)) {
         var dmg = dice.roll(enemy.def.attack.damage, rng).total;
+        if (enraged) dmg = Math.round(dmg * 1.5); // enraged boss hits 50% harder
         // a guardian redirects the blow onto themself when a non-guardian is hit
         var guardian = findGuardian(party);
         if (guardian && guardian !== target) {

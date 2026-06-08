@@ -19,6 +19,13 @@
       boss: true, undead: true,
       special: { summon: 'skeleton', summonEvery: 2, wave: 'd8' },
       desc: 'Призывает скелетов и бьёт тёмной волной по обоим. Светоч и Изгнание ослабляют его.'
+    },
+    bone_golem: {
+      id: 'bone_golem', name: 'Костяной голем-страж', art: 'assets/enemies/bone_golem.png',
+      maxHp: 45, defense: 14, attack: { bonus: 5, damage: 'd10+2' },
+      boss: true, undead: true,
+      special: { phaseAt: 0.5, enrage: true },
+      desc: 'Страж Светоча. Когда здоровье падает ниже половины — впадает в ярость и бьёт сильнее.'
     }
   };
 

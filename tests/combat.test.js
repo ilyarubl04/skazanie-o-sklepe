@@ -198,6 +198,75 @@ test('boss turn with one hero downed does not throw and spares the downed hero',
   assert(p.heroes[1].downed, 'downed hero stays down (not revived/targeted)');
 });
 
+// ---- boss phases / enrage (Stage 0) ----
+test('boss with phaseAt becomes phased below the threshold and logs ярость', function () {
+  var p = state.createParty(['brand', 'thea']);
+  combat.startCombat(p, [{ type: 'bone_golem' }]);
+  var golem = p.combat.enemies[0];
+  assert(!golem.phased, 'not phased while above half HP');
+  golem.hp = Math.floor(golem.maxHp * 0.4); // drop below 50%
+  var logLen = p.combat.log.length;
+  combat.enemiesTurn(p, maxRng());
+  assertEqual(golem.phased, true, 'phased once below threshold');
+  assert(p.combat.log.slice(logLen).some(function (l) { return /входит в ярость/.test(l); }), 'enrage logged');
+});
+test('enraged boss deals more melee damage than the same roll un-enraged', function () {
+  // un-enraged baseline: golem above threshold, maxRng so it always hits
+  var a = state.createParty(['brand', 'brand']);
+  combat.startCombat(a, [{ type: 'bone_golem' }]);
+  var beforeA = a.heroes.map(function (h) { return h.hp; });
+  combat.enemiesTurn(a, maxRng());
+  var dmgA = Math.max(beforeA[0] - a.heroes[0].hp, beforeA[1] - a.heroes[1].hp);
+  // enraged: drop below threshold first
+  var b = state.createParty(['brand', 'brand']);
+  combat.startCombat(b, [{ type: 'bone_golem' }]);
+  b.combat.enemies[0].hp = Math.floor(b.combat.enemies[0].maxHp * 0.4);
+  var beforeB = b.heroes.map(function (h) { return h.hp; });
+  combat.enemiesTurn(b, maxRng());
+  var dmgB = Math.max(beforeB[0] - b.heroes[0].hp, beforeB[1] - b.heroes[1].hp);
+  assert(dmgB > dmgA, 'enraged hit (' + dmgB + ') harder than normal (' + dmgA + ')');
+});
+test('a boss without phaseAt (Morven) never becomes phased', function () {
+  var p = state.createParty(['brand', 'thea']);
+  combat.startCombat(p, [{ type: 'morven' }]);
+  p.combat.enemies[0].hp = 1; // far below any fraction
+  combat.enemiesTurn(p, maxRng());
+  assert(!p.combat.enemies[0].phased, 'non-phase boss stays unphased');
+});
+
+// ---- progression upgrades applied in combat (Stage 0) ----
+test('extraUses from a level-up grant more ability uses after startCombat', function () {
+  var p = state.createParty(['lira', 'brand']);
+  state.applyLevelUp(p, { hp: 6, uses: 'bestCombat' }); // +1 fireball use recorded
+  combat.startCombat(p, [{ type: 'skeleton' }]);
+  assertEqual(p.heroes[0].abilityUses.fireball, 4, 'base 3 + 1 from level-up');
+});
+test('atkDieBonus adds flat damage to a hero attack', function () {
+  var p = state.createParty(['brand', 'lira']);
+  combat.startCombat(p, [{ type: 'morven' }]); // big hp so it survives
+  var uid = p.combat.enemies[0].uid;
+  var hpBefore = p.combat.enemies[0].hp;
+  combat.heroAttack(p, 0, uid, minRng(), 20); // min dmg roll (d8+3 -> 4), nat 20 hit
+  var dmgNoBonus = hpBefore - p.combat.enemies[0].hp;
+  // now with +3 atk bonus, same min roll + nat 20
+  var p2 = state.createParty(['brand', 'lira']);
+  state.upgradeRec(p2, 'brand').atkDieBonus = 3;
+  combat.startCombat(p2, [{ type: 'morven' }]);
+  var uid2 = p2.combat.enemies[0].uid;
+  var hpBefore2 = p2.combat.enemies[0].hp;
+  combat.heroAttack(p2, 0, uid2, minRng(), 20);
+  var dmgWithBonus = hpBefore2 - p2.combat.enemies[0].hp;
+  assertEqual(dmgWithBonus, dmgNoBonus + 3, 'atkDieBonus adds 3 damage');
+});
+test('defBonus raises a hero defense and can turn a hit into a miss', function () {
+  var p = state.createParty(['brand', 'lira']);
+  combat.startCombat(p, [{ type: 'skeleton' }]);
+  var base = combat.heroDefense(p.heroes[0]); // no party => base only
+  assertEqual(combat.heroDefense(p.heroes[0], p), base, 'no upgrade => unchanged');
+  state.upgradeRec(p, 'brand').defBonus = 4;
+  assertEqual(combat.heroDefense(p.heroes[0], p), base + 4, 'defBonus added');
+});
+
 // ---- guard_ally (Brand's guard): redirects a hit to the guardian ----
 test('guard redirects an enemy hit from the ally to Brand, then is consumed', function () {
   var p = state.createParty(['brand', 'lira']);
