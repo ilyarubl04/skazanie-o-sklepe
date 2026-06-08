@@ -274,10 +274,25 @@
   }
   audio.sfx = {
     dice: function () { noise(0.25, 0.3); setTimeout(function(){tone(180,0.08,'square',0.15);}, 120); },
-    // short woody clack — quick noise burst + low tone, for each wall bounce
-    diceBounce: function () { thunk(150, 0.06, 0.14, 0.12); },
-    // heavier thunk when the die finally settles on the table
-    diceLand: function () { thunk(85, 0.18, 0.3, 0.22); setTimeout(function(){ tone(60, 0.12, 'sine', 0.18); }, 30); },
+    // a single wooden knock: short resonant body + a dry click, pitch varied for realism
+    woodKnock: function (intensity) {
+      if (!audio.soundOn) return;
+      var c = ctx(); if (!c) return;
+      var g = intensity || 0.5;
+      var f0 = 150 + Math.random() * 110;            // body resonance, slightly random
+      // resonant wooden body (two quick decaying partials)
+      tone(f0, 0.055 + g * 0.05, 'sine', 0.14 * g);
+      tone(f0 * 1.5, 0.04, 'triangle', 0.07 * g);
+      // dry surface click (band-passed noise) — the "tap" on the board
+      filteredNoise(0.035, 0.16 * g, 'bandpass', 1800 + Math.random() * 1400);
+    },
+    // each board/edge contact while the die tumbles
+    diceBounce: function () { audio.sfx.woodKnock(0.55); },
+    // the final, heavier knock as the die settles on the board
+    diceLand: function () {
+      audio.sfx.woodKnock(1.0);
+      setTimeout(function () { tone(70, 0.16, 'sine', 0.2); filteredNoise(0.05, 0.12, 'lowpass', 600); }, 18);
+    },
     hit:  function () { tone(90, 0.18, 'sawtooth', 0.3); noise(0.12, 0.2); },
     miss: function () { tone(220, 0.12, 'sine', 0.12); },
     heal: function () { tone(523, 0.18, 'sine', 0.2); setTimeout(function(){tone(784,0.22,'sine',0.18);},90); },
