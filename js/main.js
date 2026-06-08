@@ -1192,22 +1192,37 @@
     ctx.stroke();
     ctx.restore();
 
-    // icon (emoji) centred
+    // icon (emoji) centred — use the colour-emoji font stack so canvas renders it
     ctx.save();
     ctx.globalAlpha = (st === 'dim') ? 0.7 : 1;
-    ctx.font = '16px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = '18px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    if (st === 'done') { ctx.fillStyle = '#f0e6c8'; }
     ctx.fillText(st === 'done' ? '✓' : L.node.icon, x, y + 1);
     ctx.restore();
 
-    // label in Forum below the marker
+    // label on a dark gilded plaque so it reads crisply on any background
     ctx.save();
-    ctx.font = "13px 'Forum', Georgia, serif";
-    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-    ctx.globalAlpha = (st === 'dim') ? 0.65 : 1;
-    ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(20,14,6,.85)';
-    ctx.strokeText(L.node.label, x, y + R + 4);
-    ctx.fillStyle = (st === 'current' || st === 'reachable') ? '#f4d27a' : '#2a1c0c';
-    ctx.fillText(L.node.label, x, y + R + 4);
+    ctx.font = "600 13px 'Forum', Georgia, serif";
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    var label = L.node.label;
+    var tw = ctx.measureText(label).width;
+    var padX = 8, ph = 19, ly = y + R + 13;
+    ctx.globalAlpha = (st === 'dim') ? 0.72 : 1;
+    // plaque
+    var lx = x - tw / 2 - padX, lw = tw + padX * 2, rr = 5;
+    ctx.beginPath();
+    ctx.moveTo(lx + rr, ly - ph / 2);
+    ctx.arcTo(lx + lw, ly - ph / 2, lx + lw, ly + ph / 2, rr);
+    ctx.arcTo(lx + lw, ly + ph / 2, lx, ly + ph / 2, rr);
+    ctx.arcTo(lx, ly + ph / 2, lx, ly - ph / 2, rr);
+    ctx.arcTo(lx, ly - ph / 2, lx + lw, ly - ph / 2, rr);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(14,9,3,.85)'; ctx.fill();
+    ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(212,168,83,.55)'; ctx.stroke();
+    // text (light/gold — high contrast on the dark plaque)
+    ctx.fillStyle = (st === 'current' || st === 'reachable') ? '#f4d27a' : '#ecdcb0';
+    ctx.fillText(label, x, ly + 0.5);
     ctx.restore();
   }
 
