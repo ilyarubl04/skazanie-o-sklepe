@@ -157,7 +157,23 @@
     return grid;
   }
 
-  // hero: a runtime party-hero ({def, hp, maxHp, downed}). opts: {active, compact}
+  // open the full character sheet in a tap-to-dismiss overlay (shared by the
+  // compact mobile card and the in-combat battle card).
+  function openHeroSheet(hero, active) {
+    var full = renderHeroCard(hero, { active: active, compact: false });
+    full.classList.add('expanded-overlay');
+    var close = document.createElement('button'); close.className = 'choice card-close';
+    close.textContent = 'Закрыть';
+    full.appendChild(close);
+    var back = document.createElement('div'); back.className = 'card-backdrop';
+    back.appendChild(full);
+    function dismiss() { if (back.parentNode) back.parentNode.removeChild(back); }
+    back.onclick = function (e) { if (e.target === back) dismiss(); };
+    close.onclick = dismiss;
+    document.body.appendChild(back);
+  }
+
+  // hero: a runtime party-hero ({def, hp, maxHp, downed}). opts: {active, compact, battle}
   // returns a DOM node. Compact cards expand to the full card on tap.
   function renderHeroCard(hero, opts) {
     opts = opts || {};
@@ -171,6 +187,22 @@
     if (opts.active) card.classList.add('active');
     if (hero.downed) card.classList.add('downed');
 
+    if (opts.battle) {
+      // BATTLE CARD — a tight combatant tile to face the enemies: framed portrait,
+      // name, HP bar (and a value), nothing else, so 2 heroes + up to ~4 foes fit on
+      // a phone. Taps to open the full character sheet. Keeps .herocard-portrait so
+      // any portrait-targeting juice still finds it.
+      card.classList.add('battle');
+      card.appendChild(buildPortrait(def, 'herocard-portrait'));
+      var bbody = document.createElement('div'); bbody.className = 'battle-body';
+      bbody.innerHTML = '<div class="hero-name">' + def.name + (hero.downed ? ' (без сознания)' : '') + '</div>' +
+        '<div class="bc-hp"><div class="hpbar"><i style="width:' + pct + '%"></i></div>' +
+        '<span class="bc-hp-num">' + hp + '/' + maxHp + '</span></div>';
+      card.appendChild(bbody);
+      card.onclick = function () { openHeroSheet(hero, opts.active); };
+      return card;
+    }
+
     if (opts.compact) {
       // collapsed bottom-bar: portrait + name + HP, taps to expand the full card
       card.classList.add('compact');
@@ -181,19 +213,7 @@
       card.appendChild(body);
       var hint = document.createElement('span'); hint.className = 'compact-hint'; hint.textContent = 'подробнее';
       card.appendChild(hint);
-      card.onclick = function () {
-        var full = renderHeroCard(hero, { active: opts.active, compact: false });
-        full.classList.add('expanded-overlay');
-        var close = document.createElement('button'); close.className = 'choice card-close';
-        close.textContent = 'Закрыть';
-        full.appendChild(close);
-        var back = document.createElement('div'); back.className = 'card-backdrop';
-        back.appendChild(full);
-        function dismiss() { if (back.parentNode) back.parentNode.removeChild(back); }
-        back.onclick = function (e) { if (e.target === back) dismiss(); };
-        close.onclick = dismiss;
-        document.body.appendChild(back);
-      };
+      card.onclick = function () { openHeroSheet(hero, opts.active); };
       return card;
     }
 
@@ -239,13 +259,15 @@
   }
 
   // render both party cards into a rail. activeIdx = highlighted hero (turn / active player).
-  // On narrow screens we default to compact (expand-on-tap) so the narration stays readable.
-  function renderParty(railEl, activeIdx) {
+  // opts.battle => combat battle cards (portrait+name+HP, tap to open the full sheet).
+  // Otherwise on narrow screens we default to compact (expand-on-tap) so narration stays readable.
+  function renderParty(railEl, activeIdx, opts) {
     if (!railEl || !party) return;
+    opts = opts || {};
     railEl.innerHTML = '';
-    var compact = window.matchMedia && window.matchMedia('(max-width:680px)').matches;
+    var compact = !opts.battle && window.matchMedia && window.matchMedia('(max-width:680px)').matches;
     party.heroes.forEach(function (h, i) {
-      var card = renderHeroCard(h, { active: i === activeIdx, compact: compact });
+      var card = renderHeroCard(h, { active: i === activeIdx, compact: compact, battle: !!opts.battle });
       card.setAttribute('data-idx', i); // so combat flash/float helpers can find it
       railEl.appendChild(card);
     });
@@ -870,18 +892,24 @@
     if (status === 'lost') { save.clear(); return enterScene(combatCtx.scene.combat.onLose); }
 
     var enemiesEl = document.getElementById('combat-enemies'); enemiesEl.innerHTML = '';
-    party.combat.enemies.filter(function (e) { return e.hp > 0 && !e.fled; }).forEach(function (e) {
-      var div = document.createElement('div'); div.className = 'panel'; div.style.display = 'inline-block'; div.style.margin = '4px';
+    var aliveFoes = party.combat.enemies.filter(function (e) { return e.hp > 0 && !e.fled; });
+    // the focused target is the first alive foe — the one the Атаковать button will hit.
+    var targetUid = aliveFoes.length ? aliveFoes[0].uid : null;
+    aliveFoes.forEach(function (e) {
+      var div = document.createElement('div'); div.className = 'enemy-card panel';
       div.setAttribute('data-uid', e.uid);
+      if (e.uid === targetUid) div.classList.add('target'); // red target ring + crosshair
       var artSrc = e.def && e.def.art ? e.def.art : '';
       var art = artSrc ? '<img src="' + artSrc + '" class="enemy-art" alt="">' : '';
-      div.innerHTML = art + '<b>' + e.name + '</b><div class="hpbar"><i style="width:' + Math.round(e.hp / e.maxHp * 100) + '%"></i></div>';
+      var crosshair = (e.uid === targetUid) ? '<div class="target-mark" aria-hidden="true">▼</div>' : '';
+      div.innerHTML = crosshair + art + '<b class="enemy-name">' + e.name + '</b>' +
+        '<div class="hpbar"><i style="width:' + Math.round(e.hp / e.maxHp * 100) + '%"></i></div>';
       enemiesEl.appendChild(div);
     });
-    // rich hero cards with live HP; highlight whose turn it is (skip a downed hero)
+    // compact battle hero cards with live HP; highlight whose turn it is (skip a downed hero)
     var hero = party.heroes[combatCtx.heroTurn];
     var activeIdx = (hero && !hero.downed) ? combatCtx.heroTurn : -1;
-    renderParty(document.getElementById('combat-heroes'), activeIdx);
+    renderParty(document.getElementById('combat-heroes'), activeIdx, { battle: true });
     document.getElementById('combat-log').innerHTML = party.combat.log.slice(-6).map(function (l) { return '<div>' + l + '</div>'; }).join('');
     renderCombatActions();
   }
