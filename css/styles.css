@@ -24,10 +24,12 @@ body{
   min-height:100%;
 }
 /* ===== atmospheric scene backgrounds ===== */
-/* two stacked layers crossfade; sepia+darken blends the photo into the painted-tome look */
+/* two stacked layers crossfade; the warm sepia/duotone is now baked into the
+   art itself (tools/treat-assets.py), so the CSS filter only lifts/settles the
+   image rather than re-grading it — keep it light so scenes aren't crushed. */
 .scene-bg{position:fixed;inset:0;z-index:0;background-size:cover;background-position:center;
   opacity:0;transition:opacity 1.2s ease;
-  filter:sepia(.35) brightness(.48) contrast(1.06) saturate(.85);
+  filter:sepia(.15) brightness(.62) contrast(1.04) saturate(.9);
   will-change:opacity,transform;}
 .scene-bg.show{opacity:1;animation:kenburns 26s ease-in-out infinite alternate;}
 /* dark readable veil so narration text always pops over the image */
