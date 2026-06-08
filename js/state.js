@@ -22,8 +22,21 @@
     });
     return {
       heroes: heroes, activePlayer: 0, sceneId: 'start', flags: {},
-      inventory: [], combat: null, upgrades: {}, level: 0
+      inventory: [], combat: null, upgrades: {}, level: 0,
+      // ---- world-map state (Act 3+ overworld navigation) ----
+      mapNode: null,        // id of the node the token currently sits on
+      discovered: [],       // ids of revealed (non-fogged) nodes
+      mapDone: []           // ids of locations whose cluster is finished
     };
+  };
+
+  // guard old saves that predate the world-map fields (called on load + before use)
+  state.ensureMapState = function (party) {
+    if (!party) return party;
+    if (!('mapNode' in party)) party.mapNode = null;
+    if (!Array.isArray(party.discovered)) party.discovered = [];
+    if (!Array.isArray(party.mapDone)) party.mapDone = [];
+    return party;
   };
 
   // ---- hero progression (campaign level-ups between acts) ----

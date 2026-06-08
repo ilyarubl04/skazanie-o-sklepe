@@ -20,6 +20,9 @@
   // re-link def references after loading
   function rehydrate(party) {
     party.heroes.forEach(function (h) { h.def = heroDef(h.id); });
+    // guard saves made before the world-map fields existed (no crash on old saves)
+    var st = root.DnD.state;
+    if (st && st.ensureMapState) st.ensureMapState(party);
     return party;
   }
 

@@ -112,6 +112,29 @@
     victory: {
       drone: [NOTE.C3], arp: [NOTE.C4, NOTE.E4, NOTE.G4, NOTE.C5],
       step: 1500, noteDur: 2.0, gain: 0.12, droneGain: 0.06, wave: 'triangle'
+    },
+    // overworld / world-map: open, wandering, a touch wistful (between forest & menu)
+    overworld: {
+      drone: [NOTE.A3 / 2], arp: [NOTE.A3, NOTE.E4, NOTE.G4, NOTE.D4],
+      step: 2400, noteDur: 3.0, gain: 0.09, droneGain: 0.06, wave: 'sine', sparse: true
+    },
+    // swamp / camp / monastery / abyss — design's new tags; reuse close moods so any
+    // scene tagged with them still plays something on-brand (procedural fallback).
+    swamp: {
+      drone: [NOTE.E2], arp: [NOTE.E3, NOTE.F3, NOTE.G3, NOTE.E3],
+      step: 3400, noteDur: 3.6, gain: 0.06, droneGain: 0.06, wave: 'sine', sparse: true
+    },
+    camp: {
+      drone: [NOTE.G2], arp: [NOTE.G3, NOTE.B3, NOTE.D4, NOTE.A3],
+      step: 2200, noteDur: 2.8, gain: 0.10, droneGain: 0.06, wave: 'triangle'
+    },
+    monastery: {
+      drone: [NOTE.C2, NOTE.G3], arp: [NOTE.C3, NOTE.Eb3, NOTE.G3],
+      step: 3800, noteDur: 4.0, gain: 0.06, droneGain: 0.07, wave: 'sine', sparse: true
+    },
+    abyss: {
+      drone: [NOTE.C2, NOTE.Db4], arp: [NOTE.C3, NOTE.Eb3],
+      step: 4600, noteDur: 4.6, gain: 0.07, droneGain: 0.08, wave: 'sine', sparse: true
     }
   };
   // D3 fallback (not in NOTE map above as a clean key)

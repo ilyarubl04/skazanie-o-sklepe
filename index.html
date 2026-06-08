@@ -45,6 +45,9 @@
     <button id="btn-help" class="mini" title="Как играть" aria-label="Как играть">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.2 9.2a2.8 2.8 0 0 1 5.4 1c0 1.9-2.8 2.4-2.8 4"/><circle cx="11.9" cy="17" r="0.6" fill="currentColor" stroke="none"/></svg>
     </button>
+    <button id="btn-map" class="mini" title="Карта похода" aria-label="Карта похода" style="display:none;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z"/><path d="M9 4v14"/><path d="M15 6v14"/></svg>
+    </button>
     <button id="btn-menu" class="mini" title="Меню" aria-label="Меню">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/></svg>
     </button>
@@ -84,6 +87,12 @@
     <div class="party-rail" id="combat-heroes"></div>
   </div>
 
+  <!-- world map (2.5D overworld) -->
+  <div class="screen" id="screen-map">
+    <canvas id="map-canvas" aria-label="Карта похода"></canvas>
+    <div id="map-hint" class="flavor">Выберите, куда направиться</div>
+  </div>
+
   <!-- pass device -->
   <div class="screen" id="screen-pass">
     <h2 id="pass-text" style="text-align:center;margin-top:26vh;">Передайте устройство</h2>
@@ -109,6 +118,7 @@
   <script src="js/heroes.js"></script>
   <script src="js/bestiary.js"></script>
   <script src="js/adventure.js"></script>
+  <script src="js/worldmap.js"></script>
   <script src="js/state.js"></script>
   <script src="js/combat.js"></script>
   <script src="js/save.js"></script>

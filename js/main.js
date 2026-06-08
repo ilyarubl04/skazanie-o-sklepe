@@ -3,6 +3,7 @@
   var D = window.DnD;
   var ui = D.ui, audio = D.audio, save = D.save, state = D.state, combat = D.combat;
   var ADV = D.ADVENTURE, HEROES = D.HEROES;
+  var WORLDMAP = D.WORLDMAP;
   var sceneMap = {}; ADV.scenes.forEach(function (s) { sceneMap[s.id] = s; });
 
   var party = null;
@@ -74,6 +75,10 @@
     vb.onclick = function (e) { e.currentTarget.classList.toggle('off', !(voice && voice.toggle())); };
   })();
   document.getElementById('btn-menu').onclick = function () { if (confirm('Выйти в меню? Прогресс сохранён.')) location.reload(); };
+  (function () {
+    var mb = document.getElementById('btn-map');
+    if (mb) mb.onclick = function () { audio.sfx.click(); enterMap(party && party.mapNode ? party.mapNode : 'pereputie', true); };
+  })();
   (function () {
     var hb = document.getElementById('btn-help');
     if (hb) hb.onclick = function () { audio.sfx.click(); showHowToPlay(); }; // re-open, no auto-advance
@@ -402,6 +407,8 @@
   }
 
   function enterScene(id) {
+    // safety net: the world-map pseudo-scene routes to the map screen, never renders
+    if (id === '__map__') { enterMap(party.mapNode || 'pereputie', true); return; }
     setSceneBg(sceneBg(id));
     if (voice && voice.playScene) voice.playScene(id);
     party.sceneId = id; save.write(party);
@@ -437,6 +444,8 @@
     if (scene.combat) return startSceneCombat(scene);
     ui.show('screen-scene');
     document.getElementById('topbar').style.display = 'block';
+    // expose the "re-open map" button once the overworld era has begun (mapNode set)
+    showMapButton(!!(party.mapNode));
 
     // Turn ownership: narrative CHOICE scenes rotate a "lead decider" between players.
     // Checks don't rotate the lead (the player picks WHO throws inside the check itself).
@@ -467,6 +476,12 @@
   function commitChoice(c) {
     audio.sfx.click();
     if (c.set) Object.keys(c.set).forEach(function (k) { state.setFlag(party, k, c.set[k]); });
+    // world-map routing: a choice can open the map (`goToMap`) or return to it
+    // after finishing a location (`returnToMap` + the node id in `mapDone`).
+    if (c.returnToMap || c.mapDone) { returnFromLocation(c.mapDone); return; }
+    // goToMap: open the overworld AT a node whose flavour intro just played, so
+    // mark it done (its cluster is finished) — its neighbours become the choices.
+    if (c.goToMap) { returnFromLocation(c.goToMap); return; }
     enterScene(c.goto);
   }
   // normal shared choice list (the existing behavior, factored out for reuse)
@@ -935,6 +950,341 @@
       ui.show(opts.backTo || 'screen-combat');
       done();
     };
+  }
+
+  // ====================================================================
+  // ---------- 2.5D world map (overworld navigation hub) ----------
+  // ====================================================================
+  var mapCtx = {
+    canvas: null, ctx: null, raf: null, t0: 0,
+    nodes: [],          // live render list: {node, sx, sy(px), state}
+    anim: null,         // active token glide {from, to, start, dur, onDone}
+    bound: false        // pointer/resize listeners attached once
+  };
+
+  // --- fog / progression helpers (all guard old saves via ensureMapState) ---
+  function mapDiscovered(id) { return party.discovered.indexOf(id) >= 0; }
+  function mapIsDone(id) { return party.mapDone.indexOf(id) >= 0; }
+  function revealNode(id) {
+    if (WORLDMAP.byId(id) && party.discovered.indexOf(id) < 0) party.discovered.push(id);
+  }
+  // reveal a node and all its graph neighbours (fog lifts one step ahead)
+  function revealAround(id) {
+    revealNode(id);
+    WORLDMAP.neighbors(id).forEach(revealNode);
+  }
+  // a node is reachable if: discovered, not yet done, has a real entry scene,
+  // and is a direct graph neighbour of the node the token currently sits on.
+  function mapReachable(id) {
+    var n = WORLDMAP.byId(id);
+    if (!n || !n.enter) return false;
+    if (!mapDiscovered(id) || mapIsDone(id)) return false;
+    return WORLDMAP.neighbors(party.mapNode || '').indexOf(id) >= 0;
+  }
+
+  // mark Acts 1–2 (and any node reached before the map opens) as already traversed,
+  // so the southern path renders as "done" rather than fogged.
+  function seedTraversedHistory() {
+    ['tihiy_brod', 'cherny_les', 'chasovnya', 'sklep', 'zal_kolokola'].forEach(function (id) {
+      if (!mapIsDone(id)) party.mapDone.push(id);
+      revealNode(id);
+    });
+  }
+
+  // ENTER the map. nodeId = where the token sits now. reveal=true lifts fog
+  // around it (its neighbours become visible & reachable). Plays an overworld mood.
+  function enterMap(nodeId, reveal) {
+    state.ensureMapState(party);
+    if (nodeId && WORLDMAP.byId(nodeId)) party.mapNode = nodeId;
+    if (!party.mapNode) party.mapNode = 'pereputie';
+    seedTraversedHistory();
+    revealNode(party.mapNode);
+    if (reveal) revealAround(party.mapNode);
+    party.sceneId = '__map__';   // Continue resumes on the map (enterScene re-routes)
+    save.write(party);
+
+    if (voice && voice.stop) voice.stop();   // no map narration — let the music breathe
+    audio.playMusic('overworld');
+    setSceneBg('assets/scenes/menu.jpg');    // warm parchment-ish backdrop behind the canvas
+    ui.show('screen-map');
+    document.getElementById('topbar').style.display = 'block';
+    showMapButton(true);
+    mapCtx.anim = null;
+    setupMapCanvas();
+    startMapLoop();
+  }
+
+  // finish a location's cluster: mark it done, plant the token there, lift fog
+  // around it (the next leg becomes reachable), then show the map.
+  function returnFromLocation(nodeId) {
+    state.ensureMapState(party);
+    if (nodeId && WORLDMAP.byId(nodeId)) {
+      if (!mapIsDone(nodeId)) party.mapDone.push(nodeId);
+      party.mapNode = nodeId;
+    }
+    enterMap(party.mapNode, true);
+  }
+
+  // --- canvas plumbing: size to the viewport at device pixel ratio, resize-safe ---
+  function setupMapCanvas() {
+    var cv = document.getElementById('map-canvas');
+    mapCtx.canvas = cv;
+    mapCtx.ctx = cv.getContext('2d');
+    sizeMapCanvas();
+    if (!mapCtx.bound) {
+      mapCtx.bound = true;
+      // single pointer handler covers mouse + touch + pen; touch-action:none (CSS)
+      // stops the browser from scrolling/zooming the canvas under the finger.
+      cv.addEventListener('pointerdown', onMapPointer);
+      window.addEventListener('resize', function () {
+        if (document.getElementById('screen-map').classList.contains('active')) {
+          sizeMapCanvas(); drawMap();
+        }
+      });
+    }
+  }
+  function sizeMapCanvas() {
+    var cv = mapCtx.canvas; if (!cv) return;
+    var dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+    var r = cv.getBoundingClientRect();
+    // fall back to the viewport if the element hasn't laid out yet (display races)
+    var w = Math.max(1, Math.round(r.width || window.innerWidth));
+    var h = Math.max(1, Math.round(r.height || (window.innerHeight - 48)));
+    cv.width = Math.round(w * dpr);
+    cv.height = Math.round(h * dpr);
+    mapCtx.cssW = w; mapCtx.cssH = h; mapCtx.dpr = dpr;
+  }
+  // percent (0..100) -> CSS pixel coords inside the canvas (inset margin keeps
+  // labels from clipping at the edges)
+  function pctToPx(node) {
+    var mx = 0.08, my = 0.10; // 8% / 10% inset
+    var x = (mx + (node.x / 100) * (1 - 2 * mx)) * mapCtx.cssW;
+    var y = (my + (node.y / 100) * (1 - 2 * my)) * mapCtx.cssH;
+    return { x: x, y: y };
+  }
+
+  function startMapLoop() {
+    if (mapCtx.raf) cancelAnimationFrame(mapCtx.raf);
+    mapCtx.t0 = performance.now ? performance.now() : Date.now();
+    var tick = function () {
+      // stop looping the moment we leave the map (saves battery, avoids ghost draws)
+      if (!document.getElementById('screen-map').classList.contains('active')) {
+        mapCtx.raf = null; return;
+      }
+      drawMap();
+      mapCtx.raf = requestAnimationFrame(tick);
+    };
+    mapCtx.raf = requestAnimationFrame(tick);
+  }
+
+  // --- the draw: parchment, ink paths, fog, markers, party token ---
+  function drawMap() {
+    var ctx = mapCtx.ctx; if (!ctx) return;
+    var W = mapCtx.cssW, H = mapCtx.cssH, dpr = mapCtx.dpr;
+    var now = (performance.now ? performance.now() : Date.now());
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+
+    // 1) aged parchment background (warm radial wash + dark vignette)
+    var g = ctx.createRadialGradient(W * 0.5, H * 0.42, Math.min(W, H) * 0.1,
+                                     W * 0.5, H * 0.5, Math.max(W, H) * 0.75);
+    g.addColorStop(0, '#caa86a');
+    g.addColorStop(0.55, '#a8854f');
+    g.addColorStop(1, '#5e451f');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    // faint ink grain — a sparse deterministic stipple, cheap and on-brand
+    ctx.save(); ctx.globalAlpha = 0.06; ctx.fillStyle = '#2a1c0c';
+    for (var i = 0; i < 90; i++) {
+      var gx = ((i * 73) % 100) / 100 * W, gy = ((i * 137) % 100) / 100 * H;
+      ctx.fillRect(gx, gy, 2, 2);
+    }
+    ctx.restore();
+    // dark edge vignette
+    var vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.7);
+    vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(15,10,4,.55)');
+    ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+
+    // build the live node list (positions + visual state) for this frame
+    var live = {};
+    WORLDMAP.nodes.forEach(function (n) {
+      var p = pctToPx(n);
+      var st = !mapDiscovered(n.id) ? 'fog'
+             : mapIsDone(n.id) ? 'done'
+             : (n.id === party.mapNode) ? 'current'
+             : mapReachable(n.id) ? 'reachable'
+             : 'dim';
+      live[n.id] = { node: n, x: p.x, y: p.y, state: st };
+    });
+    mapCtx.nodes = live;
+
+    // 2) ink PATHS between connected nodes (only when both ends are discovered)
+    WORLDMAP.edges.forEach(function (e) {
+      var a = live[e[0]], b = live[e[1]];
+      if (!a || !b) return;
+      var aSeen = a.state !== 'fog', bSeen = b.state !== 'fog';
+      if (!aSeen || !bSeen) return; // don't reveal where a path leads through fog
+      var hot = (a.state === 'current' && b.state === 'reachable') ||
+                (b.state === 'current' && a.state === 'reachable');
+      ctx.save();
+      ctx.lineCap = 'round';
+      ctx.setLineDash([1, 9]);              // dotted "traveller's trail"
+      ctx.lineWidth = hot ? 3.2 : 2.2;
+      ctx.strokeStyle = hot ? 'rgba(212,168,83,.95)' : 'rgba(60,40,18,.6)';
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+      ctx.restore();
+    });
+
+    // 3) markers
+    WORLDMAP.nodes.forEach(function (n) {
+      var L = live[n.id];
+      drawNode(ctx, L, now);
+    });
+
+    // 4) party token (banner) — at the current node, or mid-glide during an anim
+    drawToken(ctx, live, now);
+  }
+
+  function drawNode(ctx, L, now) {
+    var x = L.x, y = L.y, st = L.state;
+    if (st === 'fog') {
+      // fog of war: a soft dark smudge where an undiscovered node hides
+      ctx.save();
+      var fg = ctx.createRadialGradient(x, y, 2, x, y, 26);
+      fg.addColorStop(0, 'rgba(20,14,6,.55)'); fg.addColorStop(1, 'rgba(20,14,6,0)');
+      ctx.fillStyle = fg; ctx.beginPath(); ctx.arc(x, y, 26, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+      return;
+    }
+    var R = 17;
+    // reachable nodes gently pulse to invite a tap
+    if (st === 'reachable') {
+      var pulse = 0.5 + 0.5 * Math.sin(now / 360);
+      ctx.save();
+      ctx.beginPath(); ctx.arc(x, y, R + 6 + pulse * 6, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(212,168,83,' + (0.10 + pulse * 0.16) + ')';
+      ctx.fill(); ctx.restore();
+    }
+    if (st === 'current') {
+      ctx.save();
+      ctx.beginPath(); ctx.arc(x, y, R + 9, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,200,90,.14)'; ctx.fill(); ctx.restore();
+    }
+
+    // gold ring + parchment disc
+    ctx.save();
+    ctx.beginPath(); ctx.arc(x, y, R, 0, Math.PI * 2);
+    ctx.fillStyle = (st === 'done') ? 'rgba(46,107,79,.85)' : '#1c1107';
+    ctx.fill();
+    ctx.lineWidth = (st === 'current') ? 3.4 : 2.4;
+    ctx.strokeStyle = (st === 'dim') ? 'rgba(212,168,83,.5)' : '#d4a853';
+    ctx.globalAlpha = (st === 'dim') ? 0.7 : 1;
+    ctx.stroke();
+    ctx.restore();
+
+    // icon (emoji) centred
+    ctx.save();
+    ctx.globalAlpha = (st === 'dim') ? 0.7 : 1;
+    ctx.font = '16px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(st === 'done' ? '✓' : L.node.icon, x, y + 1);
+    ctx.restore();
+
+    // label in Forum below the marker
+    ctx.save();
+    ctx.font = "13px 'Forum', Georgia, serif";
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.globalAlpha = (st === 'dim') ? 0.65 : 1;
+    ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(20,14,6,.85)';
+    ctx.strokeText(L.node.label, x, y + R + 4);
+    ctx.fillStyle = (st === 'current' || st === 'reachable') ? '#f4d27a' : '#2a1c0c';
+    ctx.fillText(L.node.label, x, y + R + 4);
+    ctx.restore();
+  }
+
+  // a small gold pennant marking the party's position (or mid-travel point)
+  function drawToken(ctx, live, now) {
+    var tx, ty;
+    if (mapCtx.anim) {
+      var a = mapCtx.anim;
+      var p = Math.min(1, (now - a.start) / a.dur);
+      // ease-in-out for a weighty glide
+      var e = p < 0.5 ? 2 * p * p : -1 + (4 - 2 * p) * p;
+      var from = live[a.from], to = live[a.to];
+      if (!from || !to) { mapCtx.anim = null; return; }
+      tx = from.x + (to.x - from.x) * e;
+      ty = from.y + (to.y - from.y) * e;
+      if (p >= 1) {
+        var done = a.onDone; mapCtx.anim = null;
+        if (done) done();
+        return;
+      }
+    } else {
+      var cur = live[party.mapNode]; if (!cur) return;
+      tx = cur.x; ty = cur.y;
+    }
+    var bob = Math.sin(now / 420) * 2;
+    ty += bob - 26; // float the pennant above the node
+    ctx.save();
+    // pole
+    ctx.strokeStyle = '#3a2412'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(tx, ty + 22); ctx.stroke();
+    // pennant
+    ctx.fillStyle = '#8b0000';
+    ctx.beginPath();
+    ctx.moveTo(tx, ty); ctx.lineTo(tx + 18, ty + 5); ctx.lineTo(tx, ty + 11);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#d4a853'; ctx.lineWidth = 1.4; ctx.stroke();
+    ctx.restore();
+  }
+
+  // --- pointer hit-testing: screen coords -> node -> travel ---
+  function onMapPointer(ev) {
+    if (mapCtx.anim) return;                       // ignore taps mid-glide (no double-fire)
+    var cv = mapCtx.canvas; if (!cv) return;
+    var r = cv.getBoundingClientRect();
+    var px = ev.clientX - r.left, py = ev.clientY - r.top; // CSS px inside the canvas
+    var hit = null, hitDist = 1e9;
+    var nodes = mapCtx.nodes || {};
+    Object.keys(nodes).forEach(function (id) {
+      var L = nodes[id];
+      if (L.state === 'fog') return;
+      var dx = px - L.x, dy = py - L.y, d = Math.sqrt(dx * dx + dy * dy);
+      if (d < 26 && d < hitDist) { hit = L; hitDist = d; }
+    });
+    if (!hit) return;
+    if (mapReachable(hit.node.id)) { audio.sfx.click(); travelTo(hit.node); }
+    else { flashMapHint(hit.state === 'fog' ? '' : 'Сейчас туда не пройти'); }
+  }
+
+  // glide the token from the current node to `node`, then enter its cluster
+  function travelTo(node) {
+    var from = party.mapNode;
+    if (from === node.id || mapCtx.anim) return;
+    setMapHint('В путь…');
+    mapCtx.anim = {
+      from: from, to: node.id,
+      start: (performance.now ? performance.now() : Date.now()),
+      dur: 820,
+      onDone: function () {
+        party.mapNode = node.id; save.write(party);
+        // hand control to the location's scene cluster
+        if (node.enter) { showMapButton(true); enterScene(node.enter); }
+      }
+    };
+  }
+
+  function showMapButton(on) {
+    var b = document.getElementById('btn-map');
+    if (b) b.style.display = on ? '' : 'none';
+  }
+  function setMapHint(msg) {
+    var el = document.getElementById('map-hint'); if (el) el.textContent = msg;
+  }
+  var _hintTimer = null;
+  function flashMapHint(msg) {
+    if (!msg) return;
+    setMapHint(msg);
+    if (_hintTimer) clearTimeout(_hintTimer);
+    _hintTimer = setTimeout(function () { setMapHint('Выберите, куда направиться'); }, 1600);
   }
 
   // ---------- ending ----------

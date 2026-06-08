@@ -434,3 +434,24 @@ body{overflow-x:hidden;}
 /* fade-only variants used under reduced motion */
 @keyframes flashfade{0%{box-shadow:0 0 18px 4px rgba(200,20,20,.7);}100%{box-shadow:0 0 0 0 rgba(180,0,0,0);}}
 @keyframes floatfade{0%{opacity:0;}15%{opacity:1;}100%{opacity:0;}}
+
+/* ===== world map (2.5D overworld) ===== */
+/* full-bleed screen: the canvas fills the viewport below the topbar so paths,
+   fog and the party token have room to breathe. */
+#screen-map{max-width:none;margin:0;padding:0;width:100%;height:100%;}
+#screen-map.active{display:flex;flex-direction:column;}
+#map-canvas{
+  flex:1 1 auto;display:block;width:100%;height:100%;
+  /* stop the browser from scrolling/zooming the canvas under a finger drag */
+  touch-action:none;-webkit-user-select:none;user-select:none;
+  cursor:pointer;
+  /* sit above the scene-bg layers, below the topbar */
+  position:relative;z-index:2;
+  /* leave room for the fixed topbar so top-row nodes/labels aren't hidden */
+  padding-top:calc(40px + env(safe-area-inset-top,0px));
+}
+#map-hint{
+  position:fixed;left:0;right:0;bottom:calc(10px + env(safe-area-inset-bottom,0px));
+  z-index:62;text-align:center;color:#f4d27a;font-style:italic;
+  text-shadow:0 1px 4px rgba(0,0,0,.9);pointer-events:none;font-size:1rem;
+}
