@@ -6,7 +6,8 @@
     _ctx: null, _unlocked: false,
     _current: null,        // currently playing mood
     _mode: null,           // 'file' (Lyria mp3) | 'proc' (procedural) | null
-    _musicGain: null,      // master gain for procedural music
+    _master: null,         // master bus (gain -> compressor/limiter -> destination)
+    _musicGain: null,      // music gain (routes into the master bus)
     _voices: [],           // active scheduler handles (setInterval ids)
     _fade: null,           // active procedural gain-fade interval id
     _fileFade: null,       // active <audio> volume-fade interval id
@@ -22,13 +23,35 @@
     return audio._ctx;
   }
 
+  // master bus: everything (music + SFX) routes here -> limiter -> speakers.
+  // The compressor acts as a soft limiter so stacked SFX never clip/distort.
+  function masterBus() {
+    var c = ctx(); if (!c) return null;
+    if (!audio._master) {
+      var master = c.createGain();
+      master.gain.value = 1;
+      var comp = c.createDynamicsCompressor();
+      try {
+        comp.threshold.value = -3;   // start limiting just below 0 dBFS
+        comp.knee.value = 6;
+        comp.ratio.value = 12;       // hard-ish limiting ratio
+        comp.attack.value = 0.003;
+        comp.release.value = 0.25;
+      } catch (e) {}
+      master.connect(comp); comp.connect(c.destination);
+      audio._master = master;
+    }
+    return audio._master;
+  }
+
   // master gain node that all procedural music routes through (separate from SFX)
   function musicGain() {
     var c = ctx(); if (!c) return null;
     if (!audio._musicGain) {
+      var bus = masterBus();
       audio._musicGain = c.createGain();
       audio._musicGain.gain.value = 0;
-      audio._musicGain.connect(c.destination);
+      audio._musicGain.connect(bus || c.destination);
     }
     return audio._musicGain;
   }
@@ -232,6 +255,16 @@
   };
   audio.toggleSound = function () { audio.soundOn = !audio.soundOn; return audio.soundOn; };
 
+  // haptic feedback on mobile (no-op on desktop / where unsupported). Tied to soundOn.
+  audio.haptic = function (pattern) {
+    if (!audio.soundOn) return;
+    try {
+      if (typeof navigator !== 'undefined' && navigator && typeof navigator.vibrate === 'function') {
+        navigator.vibrate(pattern);
+      }
+    } catch (e) {}
+  };
+
   // ----- procedural SFX (no files) -----
   function tone(freq, dur, type, gain) {
     if (!audio.soundOn) return;
@@ -240,7 +273,7 @@
     o.type = type || 'sine'; o.frequency.value = freq;
     g.gain.setValueAtTime(gain || 0.2, c.currentTime);
     g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + dur);
-    o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime + dur);
+    o.connect(g); g.connect(masterBus() || c.destination); o.start(); o.stop(c.currentTime + dur);
   }
   function noise(dur, gain) {
     if (!audio.soundOn) return;
@@ -249,7 +282,7 @@
     var buf = c.createBuffer(1, n, c.sampleRate); var d = buf.getChannelData(0);
     for (var i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
     var s = c.createBufferSource(); s.buffer = buf; var g = c.createGain();
-    g.gain.value = gain || 0.25; s.connect(g); g.connect(c.destination); s.start();
+    g.gain.value = gain || 0.25; s.connect(g); g.connect(masterBus() || c.destination); s.start();
   }
   // softer, lower-pitched noise burst used for woody dice clacks
   function thunk(freq, dur, gain, noiseGain) {
@@ -270,7 +303,7 @@
     f.frequency.setValueAtTime(freq || 1000, t);
     if (typeof sweepTo === 'number') f.frequency.exponentialRampToValueAtTime(Math.max(60, sweepTo), t + dur);
     var g = c.createGain(); g.gain.value = gain || 0.2;
-    s.connect(f); f.connect(g); g.connect(c.destination); s.start();
+    s.connect(f); f.connect(g); g.connect(masterBus() || c.destination); s.start();
   }
   audio.sfx = {
     dice: function () { noise(0.25, 0.3); setTimeout(function(){tone(180,0.08,'square',0.15);}, 120); },
@@ -317,7 +350,7 @@
       o.frequency.exponentialRampToValueAtTime(180, t + 0.18);
       g.gain.setValueAtTime(0.22, t);
       g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
-      o.connect(g); g.connect(c.destination); o.start(t); o.stop(t + 0.24);
+      o.connect(g); g.connect(masterBus() || c.destination); o.start(t); o.stop(t + 0.24);
     },
     // dry bone rattle — a few short band-passed noise ticks
     bones: function () {
