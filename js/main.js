@@ -394,14 +394,88 @@
     textEl.onclick = function () { ui.skipTyping(textEl); };
     ui.typeParagraphs(textEl, scene.text, { dropcap: scene.dropCap }, function () {
       if (scene.check) renderCheck(scene);
-      else {
+      else if (isChoiceScene && scene.coDecision && party.heroes.length === 2) {
+        renderCoDecision(scene, actions);
+      } else {
         if (isChoiceScene) showLeadBanner(actions, party.leadPlayer);
-        ui.renderChoices(actions, scene.choices, party, function (c) {
-          audio.sfx.click(); if (c.set) Object.keys(c.set).forEach(function (k) { state.setFlag(party, k, c.set[k]); });
-          enterScene(c.goto);
-        });
+        renderSharedChoices(scene, actions);
       }
     });
+  }
+
+  // apply a chosen option's flags and move on
+  function commitChoice(c) {
+    audio.sfx.click();
+    if (c.set) Object.keys(c.set).forEach(function (k) { state.setFlag(party, k, c.set[k]); });
+    enterScene(c.goto);
+  }
+  // normal shared choice list (the existing behavior, factored out for reuse)
+  function renderSharedChoices(scene, host) {
+    ui.renderChoices(host, scene.choices, party, commitChoice);
+  }
+
+  // ---------- split decision: "вы вдвоём решаете" ----------
+  // Each player privately taps a preference; if they DISAGREE, a short reconciliation
+  // screen invites them to choose together. Falls back gracefully to shared choices.
+  function renderCoDecision(scene, host) {
+    var visible = scene.choices.filter(function (c) { return ui.choiceVisible(c, party); });
+    if (visible.length <= 1) { renderSharedChoices(scene, host); return; } // nothing to disagree about
+    var prefs = [];
+
+    function askPlayer(idx) {
+      host.innerHTML = '';
+      var banner = document.createElement('div'); banner.className = 'lead-banner';
+      banner.innerHTML = '<span class="lead-dot">◆</span> Тайно решает: ' + playerLabel(idx) +
+        ' — выбор увидит только он';
+      host.appendChild(banner);
+      var hint = document.createElement('p'); hint.className = 'flavor';
+      hint.style.cssText = 'text-align:center;margin:4px 0 8px;';
+      hint.textContent = 'Не показывай экран напарнику. Тапни, к чему склоняешься.';
+      host.appendChild(hint);
+      visible.forEach(function (c) {
+        var b = document.createElement('button'); b.className = 'choice'; b.textContent = c.label;
+        b.onclick = function () {
+          audio.sfx.click();
+          prefs[idx] = c;
+          if (idx === 0) {
+            // hand off to player 2 privately, then ask them
+            passDevice(1, function () { askPlayer(1); }, { backTo: 'screen-scene' });
+          } else {
+            resolve();
+          }
+        };
+        host.appendChild(b);
+      });
+    }
+
+    function resolve() {
+      if (prefs[0] && prefs[1] && prefs[0].goto === prefs[1].goto) {
+        host.innerHTML = '';
+        var ok = document.createElement('div'); ok.className = 'lead-banner';
+        ok.innerHTML = '<span class="lead-dot">◆</span> Вы оба выбрали одно. Так тому и быть.';
+        host.appendChild(ok);
+        setTimeout(function () { commitChoice(prefs[0]); }, 700);
+      } else {
+        showReconciliation();
+      }
+    }
+
+    // disagreement: name both preferences, then let them pick together
+    function showReconciliation() {
+      host.innerHTML = '';
+      var box = document.createElement('div'); box.className = 'panel';
+      box.style.cssText = 'text-align:center;font-family:\'Forum, Georgia, serif\';margin-bottom:10px;';
+      box.innerHTML = '<b>Вы разошлись во мнениях.</b><br>' +
+        playerLabel(0).split(' — ')[0] + ' хочет «' + prefs[0].label + '», ' +
+        playerLabel(1).split(' — ')[0] + ' — «' + prefs[1].label + '».<br>' +
+        'Обсудите и выберите вместе.';
+      host.appendChild(box);
+      var list = document.createElement('div'); host.appendChild(list);
+      renderSharedChoices(scene, list); // shared list rendered below the note
+    }
+
+    // privately hand the device to player 1 first
+    passDevice(0, function () { askPlayer(0); }, { backTo: 'screen-scene' });
   }
 
   // tasteful gold banner: who reads/decides this narrative scene (players still discuss)
