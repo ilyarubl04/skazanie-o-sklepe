@@ -282,8 +282,19 @@
         check: {
           stat: 'dex', difficulty: 'hard', ability: 'lockpick',
           label: 'Вскрыть замок сокровищницы',
-          onSuccess: 'crypt_relic', onSuccessSet: 'hasRelic',
-          onFail: 'crypt_relic', onFailSet: 'trapped'
+          onSuccess: 'crypt_golem', onSuccessSet: 'hasRelic',
+          onFail: 'crypt_golem', onFailSet: 'trapped'
+        }
+      },
+      {
+        id: 'crypt_golem', music: 'battle',
+        text: [
+          'Дверь отходит — но за ней не покой, а страж. Из груды костей и могильного камня у дальней стены, со скрежетом распрямляясь, встаёт исполин: костяной голем в три человеческих роста, древний хранитель Светоча. Пустые глазницы загораются холодным огнём, и каменный кулак заносится над вами.',
+          'Светоч мерцает за его спиной — так близко. Но к реликвии не пройти, пока страж стоит на ногах. Это и есть цена пути силы.'
+        ],
+        combat: {
+          enemies: [{ type: 'bone_golem' }],
+          onWin: 'crypt_relic', onLose: 'defeat_scene'
         }
       },
       {
