@@ -1,4 +1,4 @@
-const CACHE = 'skazanie-v7';
+const CACHE = 'skazanie-v8';
 const ASSETS = [
   './', './index.html', './css/styles.css',
   './js/dice.js', './js/rules.js', './js/heroes.js', './js/bestiary.js', './js/adventure.js',
