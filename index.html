@@ -33,11 +33,21 @@
   <div id="topbar" style="display:none;position:fixed;top:0;left:0;right:0;z-index:60;
        text-align:center;padding:6px;font-family:'Forum, Georgia, serif';background:rgba(15,10,4,.85);border-bottom:1px solid var(--gold);">
     <span id="turn-indicator"></span>
-    <button id="btn-music" class="mini">♪</button>
-    <button id="btn-sound" class="mini">🔊</button>
-    <button id="btn-voice" class="mini" title="Голос рассказчика">🎙️</button>
-    <button id="btn-help" class="mini" title="Как играть">?</button>
-    <button id="btn-menu" class="mini">≡</button>
+    <button id="btn-music" class="mini" title="Музыка" aria-label="Музыка">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>
+    </button>
+    <button id="btn-sound" class="mini" title="Звук" aria-label="Звук">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 6a8 8 0 0 1 0 12"/></svg>
+    </button>
+    <button id="btn-voice" class="mini" title="Голос рассказчика" aria-label="Голос рассказчика">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v4"/><path d="M8 22h8"/></svg>
+    </button>
+    <button id="btn-help" class="mini" title="Как играть" aria-label="Как играть">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.2 9.2a2.8 2.8 0 0 1 5.4 1c0 1.9-2.8 2.4-2.8 4"/><circle cx="11.9" cy="17" r="0.6" fill="currentColor" stroke="none"/></svg>
+    </button>
+    <button id="btn-menu" class="mini" title="Меню" aria-label="Меню">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/></svg>
+    </button>
   </div>
 
   <!-- main menu -->

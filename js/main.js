@@ -52,13 +52,15 @@
   document.getElementById('btn-credits').onclick = function () { renderCredits(); ui.show('screen-credits'); };
   document.getElementById('btn-credits-back').onclick = function () { ui.show('screen-menu'); };
   document.getElementById('btn-again').onclick = function () { save.clear(); location.reload(); };
-  document.getElementById('btn-music').onclick = function (e) { e.target.style.opacity = audio.toggleMusic() ? 1 : .4; };
-  document.getElementById('btn-sound').onclick = function (e) { e.target.style.opacity = audio.toggleSound() ? 1 : .4; };
+  // toggle the `.off` class on the BUTTON (currentTarget) — the buttons now hold an
+  // inner <svg>, so e.target may be a path; currentTarget is always the <button>.
+  document.getElementById('btn-music').onclick = function (e) { e.currentTarget.classList.toggle('off', !audio.toggleMusic()); };
+  document.getElementById('btn-sound').onclick = function (e) { e.currentTarget.classList.toggle('off', !audio.toggleSound()); };
   (function () {
     var vb = document.getElementById('btn-voice');
     if (!vb) return;
-    vb.style.opacity = (voice && voice.on) ? 1 : .4;
-    vb.onclick = function (e) { e.target.style.opacity = (voice && voice.toggle()) ? 1 : .4; };
+    vb.classList.toggle('off', !(voice && voice.on));
+    vb.onclick = function (e) { e.currentTarget.classList.toggle('off', !(voice && voice.toggle())); };
   })();
   document.getElementById('btn-menu').onclick = function () { if (confirm('Выйти в меню? Прогресс сохранён.')) location.reload(); };
   (function () {
