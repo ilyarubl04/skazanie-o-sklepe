@@ -57,6 +57,32 @@
       special: { summon: 'drowned', summonEvery: 2 },
       drops: 'tuningFork1',
       desc: 'Вестница Пастыря на гати к монастырю. Поднимает из трясины утопленников и насылает гнильную порчу. Стережёт первый камертон.'
+    },
+    // --- Акт 4 (Монастырь Безмолвия) ---
+    // ПРИМЕЧАНИЕ по движку: combat.js читает special ТОЛЬКО у боссов (var sp = enemy.boss ? ...).
+    // Поэтому рядовой voiceless — просто крепкий атакующий: «хоровой» AoE он сам по себе НЕ
+    // выдаёт. Общий «немой вопль» по обоим героям реализован у босса-Хора (choir) через
+    // special.wave — там он реально отрабатывает.
+    voiceless: {
+      id: 'voiceless', name: 'Безголосый', art: 'assets/enemies/voiceless.png',
+      maxHp: 13, defense: 12, attack: { bonus: 3, damage: 'd6' },
+      undead: true,
+      desc: 'Послушник Ордена, которому вырвали голос, чтобы он пел лишь песнь Бездны. Бредёт молча, с зашитым ртом. Слаб к Свету и Изгнанию нежити.'
+    },
+    bell_warden: {
+      id: 'bell_warden', name: 'Регент-звонарь', art: 'assets/enemies/bell_warden.png',
+      maxHp: 55, defense: 14, attack: { bonus: 5, damage: 'd8+2' },
+      boss: true, undead: true,
+      special: { phaseAt: 0.5, summon: 'skeleton', summonEvery: 3 },
+      drops: 'tuningFork2',
+      desc: 'Хранитель колокольни павшего Ордена. Когда здоровье падает ниже половины — бьёт в колокол, и на его зов из праха встают скелеты. Стережёт второй камертон.'
+    },
+    choir: {
+      id: 'choir', name: 'Хор Безголосых', art: 'assets/enemies/choir.png',
+      maxHp: 40, defense: 12, attack: { bonus: 4, damage: 'd6+1' },
+      boss: true, undead: true,
+      special: { wave: 'd6' },
+      desc: 'Три связанные одной цепью фигуры в саванах поют как один голос. Их «немой вопль» бьёт по обоим героям сразу. Слаб к Свету и Изгнанию нежити.'
     }
   };
 
