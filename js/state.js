@@ -23,7 +23,9 @@
     return {
       heroes: heroes, activePlayer: 0, sceneId: 'start', flags: {},
       inventory: [], combat: null, upgrades: {}, level: 0,
-      // ---- world-map state (Act 3+ overworld navigation) ----
+      // ---- world-map state (the map is the navigation hub for the WHOLE game) ----
+      // A fresh party opens on the map at the start node; main.js seeds mapNode and
+      // lifts the fog. These start empty/null so ensureMapState is a no-op here.
       mapNode: null,        // id of the node the token currently sits on
       discovered: [],       // ids of revealed (non-fogged) nodes
       mapDone: []           // ids of locations whose cluster is finished

@@ -77,7 +77,7 @@
   document.getElementById('btn-menu').onclick = function () { if (confirm('Выйти в меню? Прогресс сохранён.')) location.reload(); };
   (function () {
     var mb = document.getElementById('btn-map');
-    if (mb) mb.onclick = function () { audio.sfx.click(); enterMap(party && party.mapNode ? party.mapNode : 'pereputie', true); };
+    if (mb) mb.onclick = function () { audio.sfx.click(); enterMap(party && party.mapNode ? party.mapNode : 'tihiy_brod', true); };
   })();
   (function () {
     var hb = document.getElementById('btn-help');
@@ -326,8 +326,16 @@
     });
   }
   function afterColdOpen() {
-    if (tutorialSeen()) { enterScene('start'); return; }
-    showHowToPlay(function () { markTutorialSeen(); enterScene('start'); });
+    // The map is the navigation hub for the WHOLE game now: after the warm cold
+    // open (and the one-time how-to-play), the adventure opens ON THE MAP at the
+    // starting node — Тихий Брод — instead of jumping straight into a scene.
+    if (tutorialSeen()) { openStartMap(); return; }
+    showHowToPlay(function () { markTutorialSeen(); openStartMap(); });
+  }
+  // open the world map at the very first node for a brand-new journey
+  function openStartMap() {
+    state.ensureMapState(party);
+    enterMap('tihiy_brod', true);
   }
 
   // TASK 4 — skippable 4-step "Как играть" overlay
@@ -408,7 +416,7 @@
 
   function enterScene(id) {
     // safety net: the world-map pseudo-scene routes to the map screen, never renders
-    if (id === '__map__') { enterMap(party.mapNode || 'pereputie', true); return; }
+    if (id === '__map__') { enterMap(party.mapNode || 'tihiy_brod', true); return; }
     setSceneBg(sceneBg(id));
     if (voice && voice.playScene) voice.playScene(id);
     party.sceneId = id; save.write(party);
@@ -481,7 +489,18 @@
     if (c.returnToMap || c.mapDone) { returnFromLocation(c.mapDone); return; }
     // goToMap: open the overworld AT a node whose flavour intro just played, so
     // mark it done (its cluster is finished) — its neighbours become the choices.
-    if (c.goToMap) { returnFromLocation(c.goToMap); return; }
+    // Also close out the node the party physically came FROM (e.g. Зал колокола,
+    // whose cluster flows boss → morven_truth → camp_act3 → crossroads → map):
+    // otherwise it would stay "reachable" and let the player re-enter the fight.
+    if (c.goToMap) {
+      state.ensureMapState(party);
+      if (party.mapNode && party.mapNode !== c.goToMap &&
+          party.mapDone.indexOf(party.mapNode) < 0) {
+        party.mapDone.push(party.mapNode);
+      }
+      returnFromLocation(c.goToMap);
+      return;
+    }
     enterScene(c.goto);
   }
   // normal shared choice list (the existing behavior, factored out for reuse)
@@ -982,22 +1001,14 @@
     return WORLDMAP.neighbors(party.mapNode || '').indexOf(id) >= 0;
   }
 
-  // mark Acts 1–2 (and any node reached before the map opens) as already traversed,
-  // so the southern path renders as "done" rather than fogged.
-  function seedTraversedHistory() {
-    ['tihiy_brod', 'cherny_les', 'chasovnya', 'sklep', 'zal_kolokola'].forEach(function (id) {
-      if (!mapIsDone(id)) party.mapDone.push(id);
-      revealNode(id);
-    });
-  }
-
   // ENTER the map. nodeId = where the token sits now. reveal=true lifts fog
   // around it (its neighbours become visible & reachable). Plays an overworld mood.
+  // The map is now the hub for the WHOLE game: Акты 1–3 nodes reveal progressively
+  // as their clusters finish (no node is pre-marked done — the player walks them).
   function enterMap(nodeId, reveal) {
     state.ensureMapState(party);
     if (nodeId && WORLDMAP.byId(nodeId)) party.mapNode = nodeId;
-    if (!party.mapNode) party.mapNode = 'pereputie';
-    seedTraversedHistory();
+    if (!party.mapNode) party.mapNode = 'tihiy_brod';
     revealNode(party.mapNode);
     if (reveal) revealAround(party.mapNode);
     party.sceneId = '__map__';   // Continue resumes on the map (enterScene re-routes)

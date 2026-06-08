@@ -16,8 +16,10 @@
   //   enter  — the entry scene id of that location's cluster (where the map
   //            hands control back to the scene-flow). null for placeholders.
   //   done   — name of the party flag set once this location's cluster finishes.
-  //            Acts 1–2 nodes are already `done` (the party traversed them in
-  //            normal scene-flow before the map opens).
+  //
+  // The whole journey (Акты 1–3) is now navigated FROM THE MAP: the game opens
+  // on the map at the start node (Тихий Брод), and finishing each location's
+  // cluster returns to the map and lifts the fog one step ahead.
   //
   // Edges are the path graph from the design §3:
   //   1→2→4→5→6 (Акт 1–2), 6→7 (хаб), 7 ветвится 8/9 →10→11→12,
@@ -25,13 +27,13 @@
   // ---------------------------------------------------------------------------
   var WORLDMAP = {
     nodes: [
-      // ---- Акт 1–2 — already traversed (shown done, anchor the map's south) ----
-      { id: 'tihiy_brod',   label: 'Тихий Брод',        x: 17, y: 86, act: 1, icon: '🏘️', enter: null, done: 'map_tihiy_brod' },
-      { id: 'cherny_les',   label: 'Чёрный лес',        x: 30, y: 74, act: 1, icon: '🌲', enter: null, done: 'map_cherny_les' },
-      { id: 'kolodec',      label: 'Колодец Майи',      x: 9,  y: 72, act: 1, icon: '🪣', enter: null, done: 'map_kolodec' },
-      { id: 'chasovnya',    label: 'Часовня',           x: 41, y: 66, act: 1, icon: '⛪', enter: null, done: 'map_chasovnya' },
-      { id: 'sklep',        label: 'Склеп',             x: 50, y: 58, act: 2, icon: '🪦', enter: null, done: 'map_sklep' },
-      { id: 'zal_kolokola', label: 'Зал колокола',      x: 44, y: 50, act: 2, icon: '🔔', enter: null, done: 'map_zal_kolokola' },
+      // ---- Акт 1–2 — playable map nodes (each cluster returns to the map) ----
+      { id: 'tihiy_brod',   label: 'Тихий Брод',        x: 17, y: 86, act: 1, icon: '🏘️', enter: 'start',      done: 'map_tihiy_brod' },
+      { id: 'cherny_les',   label: 'Чёрный лес',        x: 30, y: 74, act: 1, icon: '🌲', enter: 'forest',     done: 'map_cherny_les' },
+      { id: 'kolodec',      label: 'Колодец Майи',      x: 9,  y: 72, act: 1, icon: '🪣', enter: null,         done: 'map_kolodec' },
+      { id: 'chasovnya',    label: 'Часовня',           x: 41, y: 66, act: 1, icon: '⛪', enter: 'chapel',     done: 'map_chasovnya' },
+      { id: 'sklep',        label: 'Склеп',             x: 50, y: 58, act: 2, icon: '🪦', enter: 'crypt_note', done: 'map_sklep' },
+      { id: 'zal_kolokola', label: 'Зал колокола',      x: 44, y: 50, act: 2, icon: '🔔', enter: 'boss',       done: 'map_zal_kolokola' },
 
       // ---- Акт 3 — «Гать Сумрачи» — the playable cluster (working enter scenes) ----
       { id: 'pereputie',    label: 'Перепутье',         x: 55, y: 44, act: 3, icon: '🪧', enter: 'crossroads',      done: 'map_pereputie' },
