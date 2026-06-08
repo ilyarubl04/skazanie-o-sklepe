@@ -15,14 +15,18 @@
     var bonus = rules.statBonus(opts.statValue) + (opts.extra || 0);
     var r = dice.rollD20(bonus, rng);
     var success = r.total >= opts.difficulty;
+    var critFail = r.natural === 1;
+    // near-miss: failed but within 2 below the difficulty, and not a natural 1
+    var partial = !success && !critFail && r.total >= opts.difficulty - 2;
     return {
       d20: r.rolls[0],
       bonus: bonus,
       total: r.total,
       difficulty: opts.difficulty,
       success: success,
+      partial: partial,
       crit: r.natural === 20,
-      critFail: r.natural === 1
+      critFail: critFail
     };
   };
 

@@ -324,15 +324,32 @@
       var diff = D.rules.DIFFICULTY[ch.difficulty];
       D.diceThrow.roll({ prompt: 'Бросок на ' + statName, onSettle: function (face) {
         var total = face + bonus;
+        var crit = face === 20, critFail = face === 1;
+        var mathSuccess = total >= diff;
+        // nat 20 always succeeds, nat 1 always fails — they override the maths
+        var success = crit ? true : (critFail ? false : mathSuccess);
+        // near-miss: failed but within 2 below difficulty and not a natural 1
+        var partial = !success && !critFail && total >= diff - 2;
         var res = {
           d20: face, bonus: bonus, total: total, difficulty: diff,
-          success: total >= diff, crit: face === 20, critFail: face === 1
+          success: success, partial: partial, crit: crit, critFail: critFail
         };
         showDiceResult(document.getElementById('dice-tray'), res, function () {
-          if (res.success) {
+          if (crit) {
+            // critical boon: a small heal for the whole party, plus a flag the scene/UI can react to
+            state.setFlag(party, 'critBoon', true);
+            party.heroes.forEach(function (h) { if (state.healHero) state.healHero(h, 2); });
+          }
+          if (success) {
             if (ch.onSuccessSet) state.setFlag(party, ch.onSuccessSet, true);
             enterScene(ch.onSuccess);
+          } else if (partial) {
+            // fail-forward: route to success but mark a complication flag
+            if (ch.onSuccessSet) state.setFlag(party, ch.onSuccessSet, true);
+            state.setFlag(party, 'partial_' + (ch.onSuccessSet || scene.id), true);
+            enterScene(ch.onSuccess);
           } else {
+            // nat 1 also stamps the failure consequence even if maths would have passed
             if (ch.onFailSet) state.setFlag(party, ch.onFailSet, true);
             enterScene(ch.onFail);
           }
@@ -345,9 +362,12 @@
   function showDiceResult(tray, res, done) {
     var flourish = res.crit ? '<br><span style="color:#d4a853">Критический успех — 20!</span>'
                  : res.critFail ? '<br><span style="color:#8b0000">Роковая единица!</span>' : '';
+    var verdict = res.success ? '<span style="color:#2e6b4f">Успех!</span>'
+                : res.partial ? '<span style="color:#c08a2e">Успех ценой…</span>'
+                : '<span style="color:#8b0000">Провал</span>';
     tray.innerHTML = '<div class="panel" style="text-align:center;font-family:\'Forum, Georgia, serif\'">' +
       '🎲 ' + res.d20 + ' + ' + res.bonus + ' = <b>' + res.total + '</b> против ' + res.difficulty +
-      '<br>' + (res.success ? '<span style="color:#2e6b4f">Успех!</span>' : '<span style="color:#8b0000">Провал</span>') +
+      '<br>' + verdict +
       flourish + '</div>';
     setTimeout(function () { tray.innerHTML = ''; done(); }, 1600);
   }

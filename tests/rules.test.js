@@ -28,6 +28,24 @@ test('resolveCheck failure on low roll', function () {
   assertEqual(r.total, 2);
   assertEqual(r.critFail, true);
 });
+test('resolveCheck flags partial on a near-miss within 2 below difficulty', function () {
+  // d20=10 (rng so floor(rng*20)+1=10 -> rng 0.5 gives 11; use 0.46 -> 10); stat1=+0; diff 12 -> 10, within 2
+  var r = rules.resolveCheck({ statValue: 1, difficulty: 12 }, function () { return 0.46; });
+  assertEqual(r.d20, 10);
+  assertEqual(r.success, false);
+  assertEqual(r.partial, true);
+});
+test('resolveCheck does not flag partial on a clear miss', function () {
+  // d20=5; diff 12 -> 5, more than 2 below
+  var r = rules.resolveCheck({ statValue: 1, difficulty: 12 }, function () { return 0.21; });
+  assertEqual(r.d20, 5);
+  assertEqual(r.partial, false);
+});
+test('resolveCheck does not flag partial on a natural 1', function () {
+  var r = rules.resolveCheck({ statValue: 5, difficulty: 5 }, function () { return 0; });
+  assertEqual(r.critFail, true);
+  assertEqual(r.partial, false);
+});
 test('resolveCheck applies flat extra bonus (e.g. Bless)', function () {
   // rng 0.5 -> d20=11; stat 1 (=+0); +2 extra; medium 12 -> 13 >= 12 success
   var r = rules.resolveCheck({ statValue: 1, difficulty: 12, extra: 2 }, function () { return 0.5; });
