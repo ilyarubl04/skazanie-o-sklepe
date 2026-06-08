@@ -18,6 +18,17 @@
     { hp: 10, uses: null, choice: 'ultimate' }     // #4 → Act 5: TODO ultimate charge
   ];
 
+  // Final-boss weakening: how much effective HP the collected camertones / Светоч /
+  // ritual strip from the shepherd. Pure function of party flags (deterministic),
+  // so it can be reasoned about and tested. Caller clamps to the HP floor.
+  var SHEPHERD_PENALTY = { tuningFork1: 12, tuningFork2: 12, tuningFork3: 12, hasRelic: 18, knowsRitual: 8 };
+  function shepherdHpPenalty(party) {
+    var f = (party && party.flags) || {};
+    var sum = 0;
+    Object.keys(SHEPHERD_PENALTY).forEach(function (k) { if (f[k]) sum += SHEPHERD_PENALTY[k]; });
+    return sum;
+  }
+
   var voice = D.voice;
   function unlockOnce() { audio.unlock(); if (voice && voice.unlock) voice.unlock(); }
   document.addEventListener('pointerdown', unlockOnce);
@@ -803,10 +814,31 @@
       enemies = scene.combat.enemiesIfNoisy;
     }
     combat.startCombat(party, enemies);
-    // relic effect: weaken the boss before the fight begins
+    // relic effect: weaken the boss before the fight begins.
+    // Single-flag form (Морвен): relicEffect:{flag, bossHpPenalty}.
     var rel = scene.combat.relicEffect;
     if (rel && party.flags[rel.flag]) {
       party.combat.enemies.forEach(function (e) { if (e.boss) e.hp = Math.max(1, e.hp - rel.bossHpPenalty); });
+    }
+    // FINAL BOSS: the 5-act collection becomes mechanically decisive. Each camertone
+    // (tuningFork1/2/3) and the Светоч (hasRelic) and the ritual (knowsRitual) sum into
+    // a stacking HP penalty on the shepherd. Clamped to a hard floor so it's never trivial.
+    var hasShepherd = party.combat.enemies.some(function (e) { return e.type === 'shepherd'; });
+    if (hasShepherd) {
+      var pen = shepherdHpPenalty(party);
+      if (pen > 0) {
+        party.combat.enemies.forEach(function (e) {
+          if (e.type === 'shepherd') {
+            var floor = 30;
+            var reduced = Math.max(floor, e.maxHp - pen);
+            // shrink BOTH maxHp and hp so the boss has a smaller FULL bar: the 66%/33%
+            // phase thresholds then trigger proportionally on the reduced health, keeping
+            // all three phases in play while the collection makes the fight winnable.
+            e.maxHp = reduced;
+            e.hp = reduced;
+          }
+        });
+      }
     }
     combatCtx = { scene: scene, heroTurn: 0 };
     ui.show('screen-combat'); renderCombat();
