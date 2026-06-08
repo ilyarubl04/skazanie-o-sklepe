@@ -70,6 +70,7 @@
 | `wraith.png` | Призрак-плакальщик | Gustave Doré, «Witch of Endor» (1866) — восстающий из-под земли призрак в саване | Wikimedia Commons | PD | не требуется |
 | `cultist.png` | Послушник Пастыря | Gustave Doré, «The Witch» — высокая фигура в капюшоне и рясе | Wikimedia Commons | PD | не требуется |
 | `bog_hag.png` | Болотная Ведьма-вестница | Francisco de Goya, «Vuelo de brujas» / «Witches' Flight» (1798) | Wikimedia Commons | PD | не требуется |
+| `shepherd.png` | Пастырь Тишины / Безмолвная Мать (финальный босс) | Gustave Doré, «Inferno» Canto XXXIV — Люцифер в ледяной Бездне (1861–1868) | Wikimedia Commons | PD | не требуется |
 
 Прямые URL источников:
 - wolf: https://commons.wikimedia.org/wiki/File:Charles_Hamilton_Smith_-_The_Gray_Wolf_-_B1981.25.2251_-_Yale_Center_for_British_Art.jpg
@@ -78,6 +79,7 @@
 - wraith: https://commons.wikimedia.org/wiki/File:Witch_of_Endor._Dore_1866.jpg
 - cultist: https://commons.wikimedia.org/wiki/File:Gustave_Dor%C3%A9_-_The_Witch.jpg
 - bog_hag: https://commons.wikimedia.org/wiki/File:Francisco_de_Goya_-_Vuelo_de_brujas_(1798).jpg
+- shepherd: https://commons.wikimedia.org/wiki/File:Gustave_Dore_Inferno34.jpg
 
 ---
 
