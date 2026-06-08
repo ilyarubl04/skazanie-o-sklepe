@@ -4,10 +4,10 @@
   var dice = root.DnD.dice;
   var rules = {};
 
-  rules.DIFFICULTY = { easy: 8, medium: 12, hard: 16, veryHard: 20 };
+  rules.DIFFICULTY = { easy: 8, medium: 11, hard: 14, veryHard: 17 };
 
-  // hero stats stored as dots 1..5
-  var BONUS = { 1: 0, 2: 2, 3: 4, 4: 5, 5: 6 };
+  // hero stats stored as dots 1..5 — flat ladder so every dot matters equally (~+5%/dot on d20)
+  var BONUS = { 1: 0, 2: 1, 3: 2, 4: 3, 5: 4 };
   rules.statBonus = function (dots) { return BONUS[dots] || 0; };
 
   // opts: { statValue (dots), difficulty, extra }
